@@ -10,55 +10,62 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import MapView, { MapMarker } from "./src/components/MapView";
-import {
-  REGION_DEFAULT,
-  SUBJECTS,
-  VIEWPOINTS,
-} from "./src/data/subjects";
+import { REGION_DEFAULT } from "./src/data/seed";
+import { usePlaces } from "./src/data/usePlaces";
 
 export default function App() {
   const [query, setQuery] = useState("");
-  const [activeSubjectId, setActiveSubjectId] = useState<string | null>(
-    SUBJECTS[0]?.id ?? null,
-  );
+  const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
+  const { subjects, viewpoints, loading, error } = usePlaces();
+
+  // Default the active filter to the first subject once data lands.
+  React.useEffect(() => {
+    if (activeSubjectId === null && subjects.length > 0) {
+      setActiveSubjectId(subjects[0].id);
+    }
+  }, [subjects, activeSubjectId]);
 
   const filteredSubjects = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return SUBJECTS;
-    return SUBJECTS.filter((s) => s.name.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return subjects;
+    return subjects.filter((s) => s.name.toLowerCase().includes(q));
+  }, [query, subjects]);
 
   const markers: MapMarker[] = useMemo(() => {
-    const subjectMarkers: MapMarker[] = SUBJECTS.filter(
-      (s) => activeSubjectId === null || s.id === activeSubjectId,
-    ).map((s) => ({
-      id: `subject:${s.id}`,
-      latitude: s.latitude,
-      longitude: s.longitude,
-      title: s.name,
-      description: "Subject (the thing being viewed)",
-      tint: "primary",
-    }));
+    const subjectMarkers: MapMarker[] = subjects
+      .filter((s) => activeSubjectId === null || s.id === activeSubjectId)
+      .map((s) => ({
+        id: `subject:${s.id}`,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        title: s.name,
+        description: "Subject (the thing being viewed)",
+        tint: "primary",
+      }));
 
-    const viewpointMarkers: MapMarker[] = VIEWPOINTS.filter(
-      (v) => activeSubjectId === null || v.subjectId === activeSubjectId,
-    ).map((v) => ({
-      id: `viewpoint:${v.id}`,
-      latitude: v.latitude,
-      longitude: v.longitude,
-      title: v.name,
-      description: v.description,
-      tint: "secondary",
-    }));
+    const viewpointMarkers: MapMarker[] = viewpoints
+      .filter((v) => activeSubjectId === null || v.subjectId === activeSubjectId)
+      .map((v) => ({
+        id: `viewpoint:${v.id}`,
+        latitude: v.latitude,
+        longitude: v.longitude,
+        title: v.name,
+        description: v.description ?? undefined,
+        tint: "secondary",
+      }));
 
     return [...subjectMarkers, ...viewpointMarkers];
-  }, [activeSubjectId]);
+  }, [subjects, viewpoints, activeSubjectId]);
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <Text style={styles.title}>PeakAboo</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>PeakAboo</Text>
+          {loading && <Text style={styles.titleHint}>loading…</Text>}
+          {error && <Text style={styles.titleError}>offline · seed data</Text>}
+        </View>
         <TextInput
           style={styles.search}
           placeholder="Search a peak or landmark…"
@@ -131,12 +138,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E2E8F0",
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    marginBottom: 8,
+  },
   title: {
     fontSize: 22,
     fontWeight: "700",
     color: "#0F172A",
-    marginBottom: 8,
   },
+  titleHint: { fontSize: 12, color: "#94A3B8" },
+  titleError: { fontSize: 12, color: "#B45309" },
   search: {
     backgroundColor: "#F1F5F9",
     borderRadius: 12,
