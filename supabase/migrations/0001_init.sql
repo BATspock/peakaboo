@@ -168,7 +168,8 @@ create policy "viewpoint_ratings: delete own"
 -- =========================================================================
 insert into public.subjects (id, name, kind, latitude, longitude) values
   ('mt-rainier', 'Mt Rainier', 'mountain', 46.8523, -121.7603),
-  ('mt-adams',   'Mt Adams',   'mountain', 46.2024, -121.4909)
+  ('mt-adams',   'Mt Adams',   'mountain', 46.2024, -121.4909),
+  ('mt-baker',   'Mt Baker',   'mountain', 48.7768, -121.8145)
 on conflict (id) do nothing;
 
 -- Use deterministic uuids (uuid_generate_v5 namespaced on subject_id+name)
@@ -185,7 +186,10 @@ with seed (subject_id, name, latitude, longitude, description) as (
     ('mt-rainier', 'Point Defiance Park',         47.3076, -122.5158, 'Tacoma — sweeping waterfront view.'),
     ('mt-rainier', 'Gene Coulon Memorial Park',   47.5074, -122.2000, 'Renton — Lake Washington with Rainier to the south.'),
     ('mt-adams',   'Trout Lake Meadows',          46.0107, -121.5306, 'Classic foreground meadow view of Mt Adams.'),
-    ('mt-adams',   'Bird Creek Meadows',          46.1497, -121.4647, 'South-side wildflower meadow on Adams.')
+    ('mt-adams',   'Bird Creek Meadows',          46.1497, -121.4647, 'South-side wildflower meadow on Adams.'),
+    ('mt-baker',   'Artist Point',                48.8463, -121.6928, 'End of Mt Baker Highway — point-blank Baker + Shuksan.'),
+    ('mt-baker',   'Picture Lake',                48.8650, -121.6783, 'Iconic reflection shot of Mt Shuksan with Baker nearby.'),
+    ('mt-baker',   'Boulevard Park',              48.7341, -122.5072, 'Bellingham waterfront — Baker rises east over the bay.')
 )
 insert into public.viewpoints (id, subject_id, name, latitude, longitude, description)
 select
