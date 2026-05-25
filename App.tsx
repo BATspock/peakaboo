@@ -12,11 +12,35 @@ import { StatusBar } from "expo-status-bar";
 import MapView, { MapMarker } from "./src/components/MapView";
 import { REGION_DEFAULT } from "./src/data/seed";
 import { usePlaces } from "./src/data/usePlaces";
+import { AuthProvider } from "./src/auth/AuthContext";
+import SignInButton from "./src/auth/SignInButton";
+import ViewpointSheet from "./src/sightings/ViewpointSheet";
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <Home />
+    </AuthProvider>
+  );
+}
+
+function Home() {
   const [query, setQuery] = useState("");
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
+  const [openViewpointId, setOpenViewpointId] = useState<string | null>(null);
   const { subjects, viewpoints, loading, error } = usePlaces();
+
+  const openViewpoint = useMemo(
+    () => viewpoints.find((v) => v.id === openViewpointId) ?? null,
+    [viewpoints, openViewpointId],
+  );
+  const openSubject = useMemo(
+    () =>
+      openViewpoint
+        ? subjects.find((s) => s.id === openViewpoint.subjectId) ?? null
+        : null,
+    [subjects, openViewpoint],
+  );
 
   // Default the active filter to the first subject once data lands.
   React.useEffect(() => {
@@ -65,6 +89,8 @@ export default function App() {
           <Text style={styles.title}>PeakAboo</Text>
           {loading && <Text style={styles.titleHint}>loading…</Text>}
           {error && <Text style={styles.titleError}>offline · seed data</Text>}
+          <View style={styles.titleSpacer} />
+          <SignInButton />
         </View>
         <TextInput
           style={styles.search}
@@ -99,10 +125,18 @@ export default function App() {
           region={REGION_DEFAULT}
           markers={markers}
           onMarkerPress={(id) => {
-            console.log("marker pressed", id);
+            if (id.startsWith("viewpoint:")) {
+              setOpenViewpointId(id.slice("viewpoint:".length));
+            }
           }}
         />
       </View>
+
+      <ViewpointSheet
+        viewpoint={openViewpoint}
+        subject={openSubject}
+        onClose={() => setOpenViewpointId(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -140,10 +174,11 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "center",
     gap: 8,
     marginBottom: 8,
   },
+  titleSpacer: { flex: 1 },
   title: {
     fontSize: 22,
     fontWeight: "700",

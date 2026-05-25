@@ -37,6 +37,7 @@ const config: ExpoConfig = {
     bundler: "metro",
   },
   plugins: [
+    "expo-web-browser",
     [
       "expo-location",
       {
