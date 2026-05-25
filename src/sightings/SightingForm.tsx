@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -13,6 +14,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
 import type { SightingCondition } from "../data/types";
 import { viewpointDateKey } from "../lib/time";
+import { pickAndUploadImages, type UploadedImage } from "./uploadImages";
 
 const CONDITIONS: SightingCondition[] = [
   "clear",
@@ -51,7 +53,10 @@ export default function SightingForm({
   const [form, setForm] = useState<FormState>(EMPTY);
   const [hydrating, setHydrating] = useState<boolean>(!!session);
   const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   // Hydrate today's existing sighting (if any) so editing is in-place.
   useEffect(() => {
@@ -88,9 +93,28 @@ export default function SightingForm({
           conditions: data.conditions,
           notes: data.notes ?? "",
         });
+
+        // Load already-uploaded images for today's sighting.
+        const { data: imgs } = await supabase
+          .from("sighting_images")
+          .select("id, storage_path, width, height")
+          .eq("sighting_id", data.id);
+        if (cancelled) return;
+        setImages(
+          (imgs ?? []).map((r) => ({
+            id: r.id,
+            storage_path: r.storage_path,
+            width: r.width,
+            height: r.height,
+            publicUrl: supabase.storage
+              .from("sightings")
+              .getPublicUrl(r.storage_path).data.publicUrl,
+          })),
+        );
       } else {
         setExistingId(null);
         setForm(EMPTY);
+        setImages([]);
       }
       setHydrating(false);
     })();
@@ -146,13 +170,20 @@ export default function SightingForm({
     };
 
     const op = existingId
-      ? supabase.from("sightings").update(payload).eq("id", existingId)
-      : supabase.from("sightings").insert(payload);
+      ? supabase
+          .from("sightings")
+          .update(payload)
+          .eq("id", existingId)
+          .select("id")
+          .single()
+      : supabase.from("sightings").insert(payload).select("id").single();
 
-    const { error } = await op;
+    const { data, error } = await op;
     setSaving(false);
 
     if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("[sighting] save failed", error);
       const msg = error.message;
       Platform.OS === "web"
         ? // eslint-disable-next-line no-alert
@@ -160,6 +191,89 @@ export default function SightingForm({
         : Alert.alert("Save failed", msg);
       return;
     }
+    if (data?.id && !existingId) setExistingId(data.id);
+    setSavedAt(Date.now());
+    onSaved();
+  }
+
+  async function handleAddPhotos() {
+    if (!session) return;
+
+    let sightingId = existingId;
+    if (!sightingId) {
+      // Need a parent sighting first — save with current form state, then upload.
+      if (form.visible === null) {
+        const msg =
+          "Tell us yes or no first — then we'll attach photos to the sighting.";
+        Platform.OS === "web"
+          ? // eslint-disable-next-line no-alert
+            window.alert(msg)
+          : Alert.alert("Almost there", msg);
+        return;
+      }
+      const payload = {
+        viewpoint_id: viewpointId,
+        user_id: session.user.id,
+        visible: form.visible,
+        visibility: form.visibility,
+        conditions: form.conditions,
+        notes: form.notes.trim() || null,
+        observed_at: new Date().toISOString(),
+      };
+      const { data, error } = await supabase
+        .from("sightings")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (error || !data) {
+        const msg = error?.message ?? "Could not create sighting.";
+        Platform.OS === "web"
+          ? // eslint-disable-next-line no-alert
+            window.alert(`Save failed: ${msg}`)
+          : Alert.alert("Save failed", msg);
+        return;
+      }
+      sightingId = data.id;
+      setExistingId(sightingId);
+      setSavedAt(Date.now());
+    }
+
+    if (!sightingId) return; // unreachable; satisfies the type checker
+    setUploading(true);
+    try {
+      const newOnes = await pickAndUploadImages({
+        sightingId,
+        userId: session.user.id,
+      });
+      setImages((prev) => [...prev, ...newOnes]);
+      onSaved();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // eslint-disable-next-line no-console
+      console.warn("[sighting] upload failed", e);
+      Platform.OS === "web"
+        ? // eslint-disable-next-line no-alert
+          window.alert(`Photo upload failed: ${msg}`)
+        : Alert.alert("Photo upload failed", msg);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleRemoveImage(img: UploadedImage) {
+    // Delete the row first (RLS allows because the parent sighting is the user's),
+    // then remove the storage object. If storage fails, we still cleared the row.
+    const { error } = await supabase
+      .from("sighting_images")
+      .delete()
+      .eq("id", img.id);
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("[sighting] delete image row failed", error.message);
+      return;
+    }
+    await supabase.storage.from("sightings").remove([img.storage_path]);
+    setImages((prev) => prev.filter((i) => i.id !== img.id));
     onSaved();
   }
 
@@ -238,19 +352,61 @@ export default function SightingForm({
         />
       </Section>
 
-      <Pressable
-        onPress={handleSave}
-        disabled={saving}
-        style={({ pressed }) => [
-          styles.primaryBtn,
-          pressed && { opacity: 0.85 },
-          saving && { opacity: 0.6 },
-        ]}
-      >
-        <Text style={styles.primaryBtnText}>
-          {saving ? "Saving…" : existingId ? "Update sighting" : "Save sighting"}
-        </Text>
-      </Pressable>
+      <Section title={`Photos${images.length ? ` · ${images.length}` : ""}`}>
+        <View style={styles.imageGrid}>
+          {images.map((img) => (
+            <Pressable
+              key={img.id}
+              onLongPress={() => handleRemoveImage(img)}
+              style={styles.imageTile}
+            >
+              <Image source={{ uri: img.publicUrl }} style={styles.imageTileImg} />
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={handleAddPhotos}
+            disabled={uploading}
+            style={[styles.addPhotoTile, uploading && { opacity: 0.6 }]}
+          >
+            {uploading ? (
+              <ActivityIndicator />
+            ) : (
+              <>
+                <Text style={styles.addPhotoPlus}>+</Text>
+                <Text style={styles.addPhotoText}>Add</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+        {images.length > 0 ? (
+          <Text style={styles.helperText}>Long-press a photo to remove it.</Text>
+        ) : null}
+      </Section>
+
+      <View style={{ gap: 6 }}>
+        <Pressable
+          onPress={handleSave}
+          disabled={saving}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            pressed && { opacity: 0.85 },
+            saving && { opacity: 0.6 },
+          ]}
+        >
+          <Text style={styles.primaryBtnText}>
+            {saving
+              ? "Saving…"
+              : existingId
+                ? "Update sighting"
+                : "Save sighting"}
+          </Text>
+        </Pressable>
+        {savedAt && Date.now() - savedAt < 4000 ? (
+          <Text style={styles.savedHint}>
+            ✓ Saved — your sighting is live in the feed below.
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -398,4 +554,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  savedHint: {
+    color: "#16A34A",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  imageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  imageTile: {
+    width: 84,
+    height: 84,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#F1F5F9",
+  },
+  imageTileImg: { width: "100%", height: "100%" },
+  addPhotoTile: {
+    width: 84,
+    height: 84,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderStyle: "dashed",
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addPhotoPlus: { fontSize: 22, color: "#94A3B8", lineHeight: 24 },
+  addPhotoText: { fontSize: 11, color: "#94A3B8", fontWeight: "600" },
+  helperText: { fontSize: 11, color: "#94A3B8", marginTop: 4 },
 });

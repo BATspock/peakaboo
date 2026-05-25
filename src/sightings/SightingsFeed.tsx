@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { supabase } from "../lib/supabase";
 import {
   formatViewpointDay,
@@ -17,6 +23,7 @@ type Row = {
   conditions: string | null;
   notes: string | null;
   profiles: { display_name: string | null; avatar_url: string | null } | null;
+  sighting_images: { id: string; storage_path: string }[];
 };
 
 type Props = {
@@ -35,7 +42,7 @@ export default function SightingsFeed({ viewpointId, refreshKey }: Props) {
       const { data, error } = await supabase
         .from("sightings")
         .select(
-          "id, user_id, observed_at, observed_on, visible, visibility, conditions, notes, profiles(display_name, avatar_url)",
+          "id, user_id, observed_at, observed_on, visible, visibility, conditions, notes, profiles(display_name, avatar_url), sighting_images(id, storage_path)",
         )
         .eq("viewpoint_id", viewpointId)
         .order("observed_at", { ascending: false })
@@ -115,6 +122,29 @@ export default function SightingsFeed({ viewpointId, refreshKey }: Props) {
                 ) : null}
               </View>
               {r.notes ? <Text style={styles.notes}>{r.notes}</Text> : null}
+              {r.sighting_images?.length ? (
+                <View style={styles.photoStrip}>
+                  {r.sighting_images.slice(0, 3).map((img) => {
+                    const url = supabase.storage
+                      .from("sightings")
+                      .getPublicUrl(img.storage_path).data.publicUrl;
+                    return (
+                      <Image
+                        key={img.id}
+                        source={{ uri: url }}
+                        style={styles.photo}
+                      />
+                    );
+                  })}
+                  {r.sighting_images.length > 3 ? (
+                    <View style={styles.photoMore}>
+                      <Text style={styles.photoMoreText}>
+                        +{r.sighting_images.length - 3}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           </View>
         );
@@ -176,4 +206,15 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
   notes: { fontSize: 13, color: "#334155", marginTop: 6, lineHeight: 18 },
+  photoStrip: { flexDirection: "row", gap: 6, marginTop: 8 },
+  photo: { width: 64, height: 64, borderRadius: 8, backgroundColor: "#E2E8F0" },
+  photoMore: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: "#0F172A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoMoreText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
 });
