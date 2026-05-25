@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -29,9 +30,14 @@ type Row = {
 type Props = {
   viewpointId: string;
   refreshKey: number;
+  onOpenLightbox?: (urls: string[], index: number) => void;
 };
 
-export default function SightingsFeed({ viewpointId, refreshKey }: Props) {
+export default function SightingsFeed({
+  viewpointId,
+  refreshKey,
+  onOpenLightbox,
+}: Props) {
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
@@ -124,25 +130,39 @@ export default function SightingsFeed({ viewpointId, refreshKey }: Props) {
               {r.notes ? <Text style={styles.notes}>{r.notes}</Text> : null}
               {r.sighting_images?.length ? (
                 <View style={styles.photoStrip}>
-                  {r.sighting_images.slice(0, 3).map((img) => {
-                    const url = supabase.storage
-                      .from("sightings")
-                      .getPublicUrl(img.storage_path).data.publicUrl;
-                    return (
-                      <Image
-                        key={img.id}
-                        source={{ uri: url }}
-                        style={styles.photo}
-                      />
+                  {(() => {
+                    const urls = r.sighting_images.map(
+                      (img) =>
+                        supabase.storage
+                          .from("sightings")
+                          .getPublicUrl(img.storage_path).data.publicUrl,
                     );
-                  })}
-                  {r.sighting_images.length > 3 ? (
-                    <View style={styles.photoMore}>
-                      <Text style={styles.photoMoreText}>
-                        +{r.sighting_images.length - 3}
-                      </Text>
-                    </View>
-                  ) : null}
+                    return (
+                      <>
+                        {r.sighting_images.slice(0, 3).map((img, i) => (
+                          <Pressable
+                            key={img.id}
+                            onPress={() => onOpenLightbox?.(urls, i)}
+                          >
+                            <Image
+                              source={{ uri: urls[i] }}
+                              style={styles.photo}
+                            />
+                          </Pressable>
+                        ))}
+                        {r.sighting_images.length > 3 ? (
+                          <Pressable
+                            style={styles.photoMore}
+                            onPress={() => onOpenLightbox?.(urls, 3)}
+                          >
+                            <Text style={styles.photoMoreText}>
+                              +{r.sighting_images.length - 3}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </View>
               ) : null}
             </View>

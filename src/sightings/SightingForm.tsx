@@ -28,6 +28,7 @@ type Props = {
   viewpointId: string;
   subjectName: string;
   onSaved: () => void;
+  onOpenLightbox?: (urls: string[], index: number) => void;
 };
 
 type FormState = {
@@ -48,6 +49,7 @@ export default function SightingForm({
   viewpointId,
   subjectName,
   onSaved,
+  onOpenLightbox,
 }: Props) {
   const { session, signInWithGoogle } = useAuth();
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -354,9 +356,15 @@ export default function SightingForm({
 
       <Section title={`Photos${images.length ? ` · ${images.length}` : ""}`}>
         <View style={styles.imageGrid}>
-          {images.map((img) => (
+          {images.map((img, i) => (
             <Pressable
               key={img.id}
+              onPress={() =>
+                onOpenLightbox?.(
+                  images.map((m) => m.publicUrl),
+                  i,
+                )
+              }
               onLongPress={() => handleRemoveImage(img)}
               style={styles.imageTile}
             >
