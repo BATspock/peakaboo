@@ -8,7 +8,7 @@ export type MapMarker = {
   longitude: number;
   title: string;
   description?: string;
-  tint?: "primary" | "secondary";
+  tint?: "primary" | "secondary" | "draft";
 };
 
 export type MapRegion = {
@@ -22,15 +22,27 @@ type Props = {
   region: MapRegion;
   markers: MapMarker[];
   onMarkerPress?: (id: string) => void;
+  onMapPress?: (coords: { latitude: number; longitude: number }) => void;
 };
 
-export default function MapView({ region, markers, onMarkerPress }: Props) {
+export default function MapView({
+  region,
+  markers,
+  onMarkerPress,
+  onMapPress,
+}: Props) {
   return (
     <View style={styles.container}>
       <RNMaps
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={region}
+        onPress={(e) =>
+          onMapPress?.({
+            latitude: e.nativeEvent.coordinate.latitude,
+            longitude: e.nativeEvent.coordinate.longitude,
+          })
+        }
       >
         {markers.map((m) => (
           <Marker
@@ -38,7 +50,13 @@ export default function MapView({ region, markers, onMarkerPress }: Props) {
             coordinate={{ latitude: m.latitude, longitude: m.longitude }}
             title={m.title}
             description={m.description}
-            pinColor={m.tint === "secondary" ? "#3B82F6" : "#EF4444"}
+            pinColor={
+              m.tint === "secondary"
+                ? "#3B82F6"
+                : m.tint === "draft"
+                  ? "#22C55E"
+                  : "#EF4444"
+            }
             onPress={() => onMarkerPress?.(m.id)}
           />
         ))}

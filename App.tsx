@@ -15,6 +15,7 @@ import { usePlaces } from "./src/data/usePlaces";
 import { AuthProvider } from "./src/auth/AuthContext";
 import SignInButton from "./src/auth/SignInButton";
 import ViewpointSheet from "./src/sightings/ViewpointSheet";
+import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
 
 export default function App() {
   return (
@@ -28,7 +29,13 @@ function Home() {
   const [query, setQuery] = useState("");
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [openViewpointId, setOpenViewpointId] = useState<string | null>(null);
-  const { subjects, viewpoints, loading, error } = usePlaces();
+  const [addOpen, setAddOpen] = useState(false);
+  const [pinDropMode, setPinDropMode] = useState(false);
+  const [pinDropCoords, setPinDropCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const { subjects, viewpoints, loading, error, refresh } = usePlaces();
 
   const openViewpoint = useMemo(
     () => viewpoints.find((v) => v.id === openViewpointId) ?? null,
@@ -78,8 +85,20 @@ function Home() {
         tint: "secondary",
       }));
 
-    return [...subjectMarkers, ...viewpointMarkers];
-  }, [subjects, viewpoints, activeSubjectId]);
+    const draftMarker: MapMarker[] = pinDropCoords
+      ? [
+          {
+            id: "draft:new",
+            latitude: pinDropCoords.latitude,
+            longitude: pinDropCoords.longitude,
+            title: "New viewpoint",
+            tint: "draft",
+          },
+        ]
+      : [];
+
+    return [...subjectMarkers, ...viewpointMarkers, ...draftMarker];
+  }, [subjects, viewpoints, activeSubjectId, pinDropCoords]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -125,17 +144,60 @@ function Home() {
           region={REGION_DEFAULT}
           markers={markers}
           onMarkerPress={(id) => {
+            if (pinDropMode) return;
             if (id.startsWith("viewpoint:")) {
               setOpenViewpointId(id.slice("viewpoint:".length));
             }
           }}
+          onMapPress={(coords) => {
+            if (!pinDropMode) return;
+            setPinDropCoords(coords);
+            setPinDropMode(false);
+            setAddOpen(true);
+          }}
         />
+
+        {pinDropMode ? (
+          <View pointerEvents="none" style={styles.dropBanner}>
+            <Text style={styles.dropBannerText}>
+              Tap anywhere on the map to drop a pin.
+            </Text>
+          </View>
+        ) : null}
+
+        <Pressable
+          style={styles.fab}
+          onPress={() => {
+            setPinDropCoords(null);
+            setAddOpen(true);
+          }}
+        >
+          <Text style={styles.fabPlus}>＋</Text>
+        </Pressable>
       </View>
 
       <ViewpointSheet
         viewpoint={openViewpoint}
         subject={openSubject}
         onClose={() => setOpenViewpointId(null)}
+      />
+
+      <AddViewpointSheet
+        visible={addOpen}
+        onClose={() => {
+          setAddOpen(false);
+          setPinDropCoords(null);
+        }}
+        subjects={subjects}
+        pinDropCoords={pinDropCoords}
+        onRequestPinDrop={() => {
+          setAddOpen(false);
+          setPinDropMode(true);
+        }}
+        onCreated={(id) => {
+          refresh();
+          setOpenViewpointId(id);
+        }}
       />
     </SafeAreaView>
   );
@@ -206,4 +268,33 @@ const styles = StyleSheet.create({
   pillText: { color: "#475569", fontWeight: "600", fontSize: 13 },
   pillTextActive: { color: "#FFFFFF" },
   mapWrap: { flex: 1 },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: "#0F172A",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabPlus: { color: "#FFFFFF", fontSize: 26, fontWeight: "700", lineHeight: 28 },
+  dropBanner: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  dropBannerText: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
 });

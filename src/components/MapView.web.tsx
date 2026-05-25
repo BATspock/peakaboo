@@ -13,7 +13,7 @@ export type MapMarker = {
   longitude: number;
   title: string;
   description?: string;
-  tint?: "primary" | "secondary";
+  tint?: "primary" | "secondary" | "draft";
 };
 
 export type MapRegion = {
@@ -27,6 +27,7 @@ type Props = {
   region: MapRegion;
   markers: MapMarker[];
   onMarkerPress?: (id: string) => void;
+  onMapPress?: (coords: { latitude: number; longitude: number }) => void;
 };
 
 const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -36,7 +37,12 @@ function regionToZoom(latitudeDelta: number) {
   return Math.max(2, Math.min(20, Math.round(Math.log2(360 / latitudeDelta))));
 }
 
-export default function MapView({ region, markers, onMarkerPress }: Props) {
+export default function MapView({
+  region,
+  markers,
+  onMarkerPress,
+  onMapPress,
+}: Props) {
   return (
     <View style={styles.container}>
       <APIProvider apiKey={apiKey}>
@@ -47,6 +53,13 @@ export default function MapView({ region, markers, onMarkerPress }: Props) {
           defaultZoom={regionToZoom(region.latitudeDelta)}
           gestureHandling="greedy"
           disableDefaultUI={false}
+          onClick={(e) => {
+            if (!e.detail.latLng) return;
+            onMapPress?.({
+              latitude: e.detail.latLng.lat,
+              longitude: e.detail.latLng.lng,
+            });
+          }}
         >
           {markers.map((m) => (
             <AdvancedMarker
@@ -56,7 +69,13 @@ export default function MapView({ region, markers, onMarkerPress }: Props) {
               onClick={() => onMarkerPress?.(m.id)}
             >
               <Pin
-                background={m.tint === "secondary" ? "#3B82F6" : "#EF4444"}
+                background={
+                  m.tint === "secondary"
+                    ? "#3B82F6"
+                    : m.tint === "draft"
+                      ? "#22C55E"
+                      : "#EF4444"
+                }
                 borderColor="#0F172A"
                 glyphColor="#FFFFFF"
               />
