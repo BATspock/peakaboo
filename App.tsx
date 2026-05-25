@@ -6,8 +6,12 @@ import {
   Text,
   TextInput,
   View,
-  SafeAreaView,
 } from "react-native";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import MapView, { MapMarker } from "./src/components/MapView";
 import { REGION_DEFAULT } from "./src/data/seed";
@@ -19,13 +23,16 @@ import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Home />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Home />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
 function Home() {
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [openViewpointId, setOpenViewpointId] = useState<string | null>(null);
@@ -158,7 +165,10 @@ function Home() {
         />
 
         {pinDropMode ? (
-          <View pointerEvents="none" style={styles.dropBanner}>
+          <View
+            pointerEvents="none"
+            style={[styles.dropBanner, { top: 16 + insets.top }]}
+          >
             <Text style={styles.dropBannerText}>
               Tap anywhere on the map to drop a pin.
             </Text>
@@ -166,7 +176,7 @@ function Home() {
         ) : null}
 
         <Pressable
-          style={styles.fab}
+          style={[styles.fab, { bottom: 24 + insets.bottom }]}
           onPress={() => {
             setPinDropCoords(null);
             setAddOpen(true);

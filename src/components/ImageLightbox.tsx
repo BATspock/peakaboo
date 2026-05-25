@@ -4,11 +4,13 @@ import {
   Modal,
   Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   urls: string[];
@@ -19,6 +21,7 @@ type Props = {
 export default function ImageLightbox({ urls, index, onClose }: Props) {
   const [current, setCurrent] = useState<number>(index ?? 0);
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (index !== null) setCurrent(index);
@@ -48,7 +51,12 @@ export default function ImageLightbox({ urls, index, onClose }: Props) {
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="rgba(0,0,0,0.92)"
+      />
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
           onPress={() => undefined}
@@ -62,7 +70,10 @@ export default function ImageLightbox({ urls, index, onClose }: Props) {
         </Pressable>
       </Pressable>
 
-      <View style={styles.topBar} pointerEvents="box-none">
+      <View
+        style={[styles.topBar, { paddingTop: 12 + insets.top }]}
+        pointerEvents="box-none"
+      >
         <Text style={styles.counter}>
           {current + 1} / {urls.length}
         </Text>
@@ -108,7 +119,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: 24,
     paddingHorizontal: 20,
     flexDirection: "row",
     justifyContent: "space-between",

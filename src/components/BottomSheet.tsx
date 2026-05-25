@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   visible: boolean;
@@ -25,6 +26,7 @@ export default function BottomSheet({
   subtitle,
   children,
 }: Props) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={visible}
@@ -37,7 +39,7 @@ export default function BottomSheet({
         <Pressable onPress={() => undefined} style={styles.sheetWrap}>
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.sheet}
+            style={[styles.sheet, { paddingBottom: 24 + insets.bottom }]}
           >
             <View style={styles.handle} />
             <View style={styles.header}>
@@ -80,7 +82,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 24,
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.08,
