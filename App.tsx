@@ -20,6 +20,8 @@ import { AuthProvider } from "./src/auth/AuthContext";
 import SignInButton from "./src/auth/SignInButton";
 import ViewpointSheet from "./src/sightings/ViewpointSheet";
 import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
+import FavoritesSheet from "./src/viewpoints/FavoritesSheet";
+import FavoritesButton from "./src/viewpoints/FavoritesButton";
 import { useFavorites } from "./src/data/useFavorites";
 
 export default function App() {
@@ -38,6 +40,7 @@ function Home() {
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [openViewpointId, setOpenViewpointId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [pinDropMode, setPinDropMode] = useState(false);
   const [pinDropCoords, setPinDropCoords] = useState<{
     latitude: number;
@@ -118,6 +121,7 @@ function Home() {
           {loading && <Text style={styles.titleHint}>loading…</Text>}
           {error && <Text style={styles.titleError}>offline · seed data</Text>}
           <View style={styles.titleSpacer} />
+          <FavoritesButton onPress={() => setFavoritesOpen(true)} />
           <SignInButton />
         </View>
         <TextInput
@@ -210,6 +214,14 @@ function Home() {
           refresh();
           setOpenViewpointId(id);
         }}
+      />
+
+      <FavoritesSheet
+        visible={favoritesOpen}
+        onClose={() => setFavoritesOpen(false)}
+        subjects={subjects}
+        viewpoints={viewpoints}
+        onPickViewpoint={(id) => setOpenViewpointId(id)}
       />
     </SafeAreaView>
   );
