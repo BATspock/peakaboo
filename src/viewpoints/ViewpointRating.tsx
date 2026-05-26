@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
+import { colors, radii } from "../theme";
 
 type Props = {
   viewpointId: string;
@@ -202,10 +203,12 @@ export default function ViewpointRating({ viewpointId }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.md,
     padding: 14,
     gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   headerRow: {
     flexDirection: "row",
@@ -214,31 +217,31 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
   },
-  heading: { fontSize: 14, fontWeight: "700", color: "#0F172A" },
-  aggregate: { fontSize: 12, color: "#64748B", fontWeight: "600" },
+  heading: { fontSize: 14, fontWeight: "700", color: colors.text },
+  aggregate: { fontSize: 12, color: colors.textSecondary, fontWeight: "600" },
   starRow: { flexDirection: "row", gap: 4 },
-  star: { fontSize: 28, color: "#E2E8F0" },
-  starActive: { color: "#F59E0B" },
+  star: { fontSize: 30, color: colors.border },
+  starActive: { color: colors.peak },
   starDisabled: { opacity: 0.7 },
   review: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 50,
     fontSize: 13,
-    color: "#0F172A",
+    color: colors.text,
     textAlignVertical: "top",
   },
   saveBtn: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.forest,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: radii.sm,
     alignItems: "center",
   },
-  saveBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  saveBtnText: { color: colors.textOn, fontWeight: "700", fontSize: 14 },
   savedHint: {
-    color: "#16A34A",
+    color: colors.forestSoft,
     fontSize: 12,
     fontWeight: "600",
     textAlign: "center",

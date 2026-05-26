@@ -13,6 +13,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { colors, radii } from "./src/theme";
 import MapView, { MapMarker } from "./src/components/MapView";
 import { REGION_DEFAULT } from "./src/data/seed";
 import { usePlaces } from "./src/data/usePlaces";
@@ -119,7 +120,10 @@ function Home() {
       <StatusBar style="dark" />
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>PeakAboo</Text>
+          <Text style={styles.title}>
+            <Text style={styles.titlePeak}>Peak</Text>
+            <Text style={styles.titleAboo}>Aboo</Text>
+          </Text>
           {loading && <Text style={styles.titleHint}>loading…</Text>}
           {error && <Text style={styles.titleError}>offline · seed data</Text>}
           <View style={styles.titleSpacer} />
@@ -129,7 +133,7 @@ function Home() {
         <TextInput
           style={styles.search}
           placeholder="Search a peak or landmark…"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textTertiary}
           value={query}
           onChangeText={setQuery}
         />
@@ -251,76 +255,85 @@ function SubjectPill({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F8FAFC" },
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
-    paddingTop: 8,
+    paddingTop: 10,
     paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: "#FFFFFF",
+    paddingBottom: 10,
+    backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: colors.border,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 10,
   },
   titleSpacer: { flex: 1 },
   title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#0F172A",
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
-  titleHint: { fontSize: 12, color: "#94A3B8" },
-  titleError: { fontSize: 12, color: "#B45309" },
+  titlePeak: { color: colors.forest },
+  titleAboo: {
+    color: colors.peak,
+    fontStyle: "italic",
+  },
+  titleHint: { fontSize: 12, color: colors.textTertiary, fontWeight: "500" },
+  titleError: { fontSize: 12, color: colors.ember, fontWeight: "600" },
   search: {
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.md,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontSize: 15,
-    color: "#0F172A",
+    color: colors.text,
   },
   pillRow: { paddingTop: 10, gap: 8 },
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSoft,
     marginRight: 8,
   },
-  pillActive: { backgroundColor: "#0F172A" },
-  pillText: { color: "#475569", fontWeight: "600", fontSize: 13 },
-  pillTextActive: { color: "#FFFFFF" },
+  pillActive: { backgroundColor: colors.forest },
+  pillText: { color: colors.textSecondary, fontWeight: "600", fontSize: 13 },
+  pillTextActive: { color: colors.textOn },
   mapWrap: { flex: 1 },
   fab: {
     position: "absolute",
     right: 20,
     bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 999,
-    backgroundColor: "#0F172A",
+    width: 60,
+    height: 60,
+    borderRadius: radii.pill,
+    backgroundColor: colors.forestSoft,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0F172A",
+    shadowColor: colors.forest,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
     elevation: 6,
   },
-  fabPlus: { color: "#FFFFFF", fontSize: 26, fontWeight: "700", lineHeight: 28 },
+  fabPlus: {
+    color: colors.textOn,
+    fontSize: 28,
+    fontWeight: "700",
+    lineHeight: 30,
+  },
   dropBanner: {
     position: "absolute",
-    top: 16,
     left: 16,
     right: 16,
-    backgroundColor: "rgba(15, 23, 42, 0.9)",
+    backgroundColor: colors.forest,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
   },
-  dropBannerText: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
+  dropBannerText: { color: colors.textOn, fontWeight: "600", fontSize: 13 },
 });

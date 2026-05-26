@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import BottomSheet from "../components/BottomSheet";
 import { useFavorites } from "../data/useFavorites";
 import type { Subject, Viewpoint } from "../data/types";
+import { colors, radii } from "../theme";
 
 type Props = {
   visible: boolean;
@@ -100,7 +101,7 @@ export default function FavoritesSheet({
 const styles = StyleSheet.create({
   empty: { paddingVertical: 16, alignItems: "center" },
   emptyText: {
-    color: "#64748B",
+    color: colors.textSecondary,
     fontSize: 13,
     textAlign: "center",
     lineHeight: 18,
@@ -110,8 +111,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingRight: 12,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   rowBody: {
     flex: 1,
@@ -124,22 +127,22 @@ const styles = StyleSheet.create({
   iconBubble: {
     width: 36,
     height: 36,
-    borderRadius: 999,
-    backgroundColor: "#FEF3C7",
+    borderRadius: radii.pill,
+    backgroundColor: colors.peakSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  iconText: { fontSize: 18, color: "#B45309" },
-  name: { fontSize: 14, fontWeight: "700", color: "#0F172A" },
-  subjectLine: { fontSize: 12, color: "#64748B", marginTop: 1 },
-  description: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
+  iconText: { fontSize: 18, color: colors.ember },
+  name: { fontSize: 14, fontWeight: "700", color: colors.text },
+  subjectLine: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  description: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   removeBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
   },
-  removeText: { fontSize: 12, fontWeight: "600", color: "#475569" },
+  removeText: { fontSize: 12, fontWeight: "600", color: colors.textSecondary },
 });

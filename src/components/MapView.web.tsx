@@ -71,14 +71,14 @@ export default function MapView({
               <Pin
                 background={
                   m.tint === "favorite"
-                    ? "#F59E0B"
+                    ? "#F4A45A"
                     : m.tint === "secondary"
-                      ? "#3B82F6"
+                      ? "#4A8BBF"
                       : m.tint === "draft"
-                        ? "#22C55E"
-                        : "#EF4444"
+                        ? "#4DA070"
+                        : "#1B3A2F"
                 }
-                borderColor="#0F172A"
+                borderColor="#1B3A2F"
                 glyphColor="#FFFFFF"
               />
             </AdvancedMarker>

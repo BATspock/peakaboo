@@ -9,6 +9,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useFavorites } from "../data/useFavorites";
 import { openInMaps } from "../lib/maps";
 import type { Subject, Viewpoint } from "../data/types";
+import { colors, radii } from "../theme";
 
 type Props = {
   viewpoint: Viewpoint | null;
@@ -116,13 +117,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+    paddingVertical: 11,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  actionBtnActive: { backgroundColor: "#FEF3C7" },
-  actionIcon: { fontSize: 16, color: "#0F172A", fontWeight: "700" },
-  actionIconActive: { color: "#B45309" },
-  actionText: { fontSize: 13, fontWeight: "700", color: "#0F172A" },
-  actionTextActive: { color: "#92400E" },
+  actionBtnActive: {
+    backgroundColor: colors.peakSoft,
+    borderColor: colors.peak,
+  },
+  actionIcon: { fontSize: 16, color: colors.text, fontWeight: "700" },
+  actionIconActive: { color: colors.ember },
+  actionText: { fontSize: 13, fontWeight: "700", color: colors.text },
+  actionTextActive: { color: colors.emberDark },
 });

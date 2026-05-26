@@ -14,6 +14,7 @@ import BottomSheet from "../components/BottomSheet";
 import { useAuth } from "../auth/AuthContext";
 import { supabase } from "../lib/supabase";
 import type { Subject } from "../data/types";
+import { colors, radii } from "../theme";
 
 type Mode = "current" | "pin" | "coords";
 
@@ -245,7 +246,7 @@ export default function AddViewpointSheet({
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Latitude (e.g. 47.6295)"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numbers-and-punctuation"
                 value={coordInput.lat}
                 onChangeText={(t) => setCoordInput((c) => ({ ...c, lat: t }))}
@@ -253,7 +254,7 @@ export default function AddViewpointSheet({
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Longitude (e.g. -122.36)"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="numbers-and-punctuation"
                 value={coordInput.lng}
                 onChangeText={(t) => setCoordInput((c) => ({ ...c, lng: t }))}
@@ -278,7 +279,7 @@ export default function AddViewpointSheet({
           <TextInput
             style={styles.input}
             placeholder="Kerry Park"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textTertiary}
             value={name}
             onChangeText={setName}
           />
@@ -289,7 +290,7 @@ export default function AddViewpointSheet({
           <TextInput
             style={[styles.input, styles.multiline]}
             placeholder="Tip: best view at sunset, partial blockage…"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textTertiary}
             multiline
             value={description}
             onChangeText={setDescription}
@@ -363,69 +364,71 @@ function ModeTab({
 }
 
 const styles = StyleSheet.create({
-  signedOutText: { fontSize: 14, color: "#475569", textAlign: "center" },
+  signedOutText: { fontSize: 14, color: colors.textSecondary, textAlign: "center" },
 
   modeRow: {
     flexDirection: "row",
     gap: 6,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: colors.surfaceSoft,
     padding: 4,
-    borderRadius: 12,
+    borderRadius: radii.md,
   },
   modeTab: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 9,
+    borderRadius: radii.sm,
     alignItems: "center",
   },
-  modeTabActive: { backgroundColor: "#FFFFFF" },
-  modeTabText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
-  modeTabTextActive: { color: "#0F172A" },
+  modeTabActive: { backgroundColor: colors.surface },
+  modeTabText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  modeTabTextActive: { color: colors.text },
 
-  label: { fontSize: 13, fontWeight: "700", color: "#0F172A" },
+  label: { fontSize: 13, fontWeight: "700", color: colors.text },
   input: {
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: "#0F172A",
+    color: colors.text,
   },
   multiline: { minHeight: 60, textAlignVertical: "top" },
   coordRow: { flexDirection: "row", gap: 8 },
   coordsConfirm: {
-    backgroundColor: "#ECFDF5",
-    borderRadius: 10,
+    backgroundColor: colors.leafBg,
+    borderRadius: radii.sm,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  coordsConfirmText: { color: "#065F46", fontWeight: "600", fontSize: 13 },
+  coordsConfirmText: { color: colors.forest, fontWeight: "600", fontSize: 13 },
 
   subjectRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSoft,
   },
-  chipActive: { backgroundColor: "#0F172A" },
-  chipText: { color: "#475569", fontWeight: "600", fontSize: 13 },
-  chipTextActive: { color: "#FFFFFF" },
+  chipActive: { backgroundColor: colors.forest },
+  chipText: { color: colors.textSecondary, fontWeight: "600", fontSize: 13 },
+  chipTextActive: { color: colors.textOn },
 
   primaryBtn: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.forestSoft,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
   },
-  primaryBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  primaryBtnText: { color: colors.textOn, fontWeight: "700", fontSize: 15 },
   secondaryBtn: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: colors.surfaceSoft,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  secondaryBtnText: { color: "#0F172A", fontWeight: "700", fontSize: 14 },
+  secondaryBtnText: { color: colors.text, fontWeight: "700", fontSize: 14 },
 
-  helperText: { fontSize: 12, color: "#64748B", lineHeight: 16 },
+  helperText: { fontSize: 12, color: colors.textSecondary, lineHeight: 16 },
 });

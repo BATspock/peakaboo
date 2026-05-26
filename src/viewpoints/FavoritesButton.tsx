@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../auth/AuthContext";
 import { useFavorites } from "../data/useFavorites";
+import { colors, radii } from "../theme";
 
 type Props = {
   onPress: () => void;
@@ -29,23 +30,23 @@ const styles = StyleSheet.create({
   btn: {
     width: 36,
     height: 36,
-    borderRadius: 999,
-    backgroundColor: "#FEF3C7",
+    borderRadius: radii.pill,
+    backgroundColor: colors.peakSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  icon: { fontSize: 18, color: "#B45309" },
+  icon: { fontSize: 18, color: colors.ember },
   badge: {
     position: "absolute",
     top: -2,
     right: -4,
     minWidth: 18,
     height: 18,
-    borderRadius: 999,
+    borderRadius: radii.pill,
     paddingHorizontal: 5,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.forest,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
+  badgeText: { color: colors.textOn, fontSize: 11, fontWeight: "700" },
 });

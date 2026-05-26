@@ -52,12 +52,12 @@ export default function MapView({
             description={m.description}
             pinColor={
               m.tint === "favorite"
-                ? "#F59E0B"
+                ? "#F4A45A"
                 : m.tint === "secondary"
-                  ? "#3B82F6"
+                  ? "#4A8BBF"
                   : m.tint === "draft"
-                    ? "#22C55E"
-                    : "#EF4444"
+                    ? "#4DA070"
+                    : "#1B3A2F"
             }
             onPress={() => onMarkerPress?.(m.id)}
           />

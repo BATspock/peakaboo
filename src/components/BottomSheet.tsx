@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, radii } from "../theme";
 
 type Props = {
   visible: boolean;
@@ -74,49 +75,49 @@ export default function BottomSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    backgroundColor: colors.scrim,
     justifyContent: "flex-end",
   },
   sheetWrap: { maxHeight: "92%" },
   sheet: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: "#0F172A",
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    shadowColor: colors.forest,
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
     elevation: 8,
   },
   handle: {
     alignSelf: "center",
-    width: 40,
+    width: 44,
     height: 4,
-    borderRadius: 999,
-    backgroundColor: "#E2E8F0",
-    marginTop: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.border,
+    marginTop: 10,
     marginBottom: 4,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 10,
+    paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: colors.border,
   },
-  title: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  subtitle: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  title: { fontSize: 19, fontWeight: "800", color: colors.text, letterSpacing: -0.3 },
+  subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
+    width: 34,
+    height: 34,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  closeText: { fontSize: 16, color: "#475569", fontWeight: "600" },
+  closeText: { fontSize: 16, color: colors.textSecondary, fontWeight: "600" },
   body: { maxHeight: 600 },
   bodyContent: { padding: 20, gap: 20 },
 });

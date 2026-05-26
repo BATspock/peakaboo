@@ -13,6 +13,7 @@ import {
   formatViewpointTime,
   viewpointDateKey,
 } from "../lib/time";
+import { colors, radii } from "../theme";
 
 type Row = {
   id: string;
@@ -118,13 +119,16 @@ export default function SightingsFeed({
               <View style={styles.rowMetaRow}>
                 <Badge
                   label={r.visible ? "Visible" : "Not visible"}
-                  tint={r.visible ? "#16A34A" : "#DC2626"}
+                  tint={r.visible ? colors.forestSoft : colors.clay}
                 />
                 {r.conditions ? (
-                  <Badge label={r.conditions} tint="#0F172A" />
+                  <Badge label={r.conditions} tint={colors.glacier} />
                 ) : null}
                 {typeof r.visibility === "number" ? (
-                  <Badge label={`${r.visibility}/10`} tint="#475569" />
+                  <Badge
+                    label={`${r.visibility}/10`}
+                    tint={colors.textSecondary}
+                  />
                 ) : null}
               </View>
               {r.notes ? <Text style={styles.notes}>{r.notes}</Text> : null}
@@ -184,57 +188,71 @@ function Badge({ label, tint }: { label: string; tint: string }) {
 const styles = StyleSheet.create({
   center: { padding: 24, alignItems: "center" },
   empty: { paddingVertical: 16, alignItems: "center" },
-  emptyText: { color: "#64748B", fontSize: 13 },
-  feedTitle: { fontSize: 14, fontWeight: "700", color: "#0F172A" },
+  emptyText: { color: colors.textSecondary, fontSize: 13 },
+  feedTitle: { fontSize: 14, fontWeight: "700", color: colors.text },
 
   row: {
     flexDirection: "row",
     gap: 12,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSoft,
   },
-  rowToday: { backgroundColor: "#FEF3C7" },
+  rowToday: {
+    backgroundColor: colors.peakSoft,
+    borderWidth: 1,
+    borderColor: colors.peak,
+  },
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 999,
-    backgroundColor: "#0F172A",
+    borderRadius: radii.pill,
+    backgroundColor: colors.forest,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { color: "#FFFFFF", fontWeight: "700" },
+  avatarText: { color: colors.textOn, fontWeight: "700" },
   rowHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "baseline",
     gap: 8,
   },
-  rowName: { fontSize: 14, fontWeight: "700", color: "#0F172A", flexShrink: 1 },
-  rowTime: { fontSize: 11, color: "#64748B" },
+  rowName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+    flexShrink: 1,
+  },
+  rowTime: { fontSize: 11, color: colors.textSecondary },
   rowMetaRow: { flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" },
   badge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 3,
-    borderRadius: 999,
+    borderRadius: radii.pill,
   },
   badgeText: {
-    color: "#FFFFFF",
+    color: colors.textOn,
     fontSize: 11,
     fontWeight: "700",
     textTransform: "capitalize",
   },
-  notes: { fontSize: 13, color: "#334155", marginTop: 6, lineHeight: 18 },
+  notes: { fontSize: 13, color: colors.text, marginTop: 6, lineHeight: 18 },
   photoStrip: { flexDirection: "row", gap: 6, marginTop: 8 },
-  photo: { width: 64, height: 64, borderRadius: 8, backgroundColor: "#E2E8F0" },
+  photo: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.sm,
+    backgroundColor: colors.border,
+  },
   photoMore: {
     width: 64,
     height: 64,
-    borderRadius: 8,
-    backgroundColor: "#0F172A",
+    borderRadius: radii.sm,
+    backgroundColor: colors.forest,
     alignItems: "center",
     justifyContent: "center",
   },
-  photoMoreText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  photoMoreText: { color: colors.textOn, fontWeight: "700", fontSize: 13 },
 });

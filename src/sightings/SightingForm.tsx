@@ -15,6 +15,7 @@ import { useAuth } from "../auth/AuthContext";
 import type { SightingCondition } from "../data/types";
 import { viewpointDateKey } from "../lib/time";
 import { pickAndUploadImages, type UploadedImage } from "./uploadImages";
+import { colors, radii } from "../theme";
 
 const CONDITIONS: SightingCondition[] = [
   "clear",
@@ -284,14 +285,14 @@ export default function SightingForm({
       <Section title={`Can you see ${subjectName} right now?`}>
         <View style={styles.yesNoRow}>
           <BigToggle
-            label="Yes"
-            tint="#16A34A"
+            label="Yes, I can"
+            tint={colors.forestSoft}
             active={form.visible === true}
             onPress={() => setForm((f) => ({ ...f, visible: true }))}
           />
           <BigToggle
-            label="No"
-            tint="#DC2626"
+            label="No view"
+            tint={colors.clay}
             active={form.visible === false}
             onPress={() => setForm((f) => ({ ...f, visible: false }))}
           />
@@ -496,74 +497,79 @@ function Chip({
 const styles = StyleSheet.create({
   center: { padding: 24, alignItems: "center" },
   signedOut: { alignItems: "stretch", gap: 12, paddingVertical: 8 },
-  signedOutText: { fontSize: 14, color: "#475569", textAlign: "center" },
+  signedOutText: { fontSize: 14, color: colors.textSecondary, textAlign: "center" },
 
-  sectionTitle: { fontSize: 14, fontWeight: "700", color: "#0F172A" },
-  sectionSub: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.text },
+  sectionSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
   yesNoRow: { flexDirection: "row", gap: 12 },
   bigToggle: {
     flex: 1,
     paddingVertical: 18,
-    borderRadius: 14,
+    borderRadius: radii.lg,
     borderWidth: 2,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
     alignItems: "center",
   },
-  bigToggleText: { fontSize: 16, fontWeight: "700", color: "#475569" },
-  bigToggleTextActive: { color: "#FFFFFF" },
+  bigToggleText: { fontSize: 16, fontWeight: "700", color: colors.textSecondary },
+  bigToggleTextActive: { color: colors.textOn },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSoft,
     textTransform: "capitalize",
   },
-  chipActive: { backgroundColor: "#0F172A" },
+  chipActive: { backgroundColor: colors.forest },
   chipText: {
-    color: "#475569",
+    color: colors.textSecondary,
     fontWeight: "600",
     fontSize: 13,
     textTransform: "capitalize",
   },
-  chipTextActive: { color: "#FFFFFF" },
+  chipTextActive: { color: colors.textOn },
 
   scaleRow: { flexDirection: "row", gap: 4 },
   scaleBtn: {
     flex: 1,
     minWidth: 28,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    paddingVertical: 9,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceSoft,
     alignItems: "center",
   },
-  scaleBtnActive: { backgroundColor: "#0F172A" },
-  scaleBtnText: { fontSize: 13, fontWeight: "600", color: "#475569" },
-  scaleBtnTextActive: { color: "#FFFFFF" },
+  scaleBtnActive: { backgroundColor: colors.glacier },
+  scaleBtnText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  scaleBtnTextActive: { color: colors.textOn },
 
   notes: {
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 64,
     fontSize: 14,
-    color: "#0F172A",
+    color: colors.text,
     textAlignVertical: "top",
   },
 
   primaryBtn: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.forestSoft,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
+    shadowColor: colors.forest,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  primaryBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  primaryBtnText: { color: colors.textOn, fontWeight: "700", fontSize: 15 },
   savedHint: {
-    color: "#16A34A",
+    color: colors.forestSoft,
     fontSize: 12,
     fontWeight: "600",
     textAlign: "center",
@@ -573,23 +579,23 @@ const styles = StyleSheet.create({
   imageTile: {
     width: 84,
     height: 84,
-    borderRadius: 10,
+    borderRadius: radii.md,
     overflow: "hidden",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: colors.surfaceSoft,
   },
   imageTileImg: { width: "100%", height: "100%" },
   addPhotoTile: {
     width: 84,
     height: 84,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
     borderStyle: "dashed",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
   },
-  addPhotoPlus: { fontSize: 22, color: "#94A3B8", lineHeight: 24 },
-  addPhotoText: { fontSize: 11, color: "#94A3B8", fontWeight: "600" },
-  helperText: { fontSize: 11, color: "#94A3B8", marginTop: 4 },
+  addPhotoPlus: { fontSize: 22, color: colors.textSecondary, lineHeight: 24 },
+  addPhotoText: { fontSize: 11, color: colors.textSecondary, fontWeight: "600" },
+  helperText: { fontSize: 11, color: colors.textTertiary, marginTop: 4 },
 });
