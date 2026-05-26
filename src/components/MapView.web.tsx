@@ -13,7 +13,7 @@ export type MapMarker = {
   longitude: number;
   title: string;
   description?: string;
-  tint?: "primary" | "secondary" | "draft";
+  tint?: "primary" | "secondary" | "draft" | "favorite";
 };
 
 export type MapRegion = {
@@ -70,11 +70,13 @@ export default function MapView({
             >
               <Pin
                 background={
-                  m.tint === "secondary"
-                    ? "#3B82F6"
-                    : m.tint === "draft"
-                      ? "#22C55E"
-                      : "#EF4444"
+                  m.tint === "favorite"
+                    ? "#F59E0B"
+                    : m.tint === "secondary"
+                      ? "#3B82F6"
+                      : m.tint === "draft"
+                        ? "#22C55E"
+                        : "#EF4444"
                 }
                 borderColor="#0F172A"
                 glyphColor="#FFFFFF"

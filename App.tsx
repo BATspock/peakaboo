@@ -20,6 +20,7 @@ import { AuthProvider } from "./src/auth/AuthContext";
 import SignInButton from "./src/auth/SignInButton";
 import ViewpointSheet from "./src/sightings/ViewpointSheet";
 import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
+import { useFavorites } from "./src/data/useFavorites";
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ function Home() {
     longitude: number;
   } | null>(null);
   const { subjects, viewpoints, loading, error, refresh } = usePlaces();
+  const { has: hasFavorite } = useFavorites();
 
   const openViewpoint = useMemo(
     () => viewpoints.find((v) => v.id === openViewpointId) ?? null,
@@ -89,7 +91,7 @@ function Home() {
         longitude: v.longitude,
         title: v.name,
         description: v.description ?? undefined,
-        tint: "secondary",
+        tint: hasFavorite(v.id) ? "favorite" : "secondary",
       }));
 
     const draftMarker: MapMarker[] = pinDropCoords
@@ -105,7 +107,7 @@ function Home() {
       : [];
 
     return [...subjectMarkers, ...viewpointMarkers, ...draftMarker];
-  }, [subjects, viewpoints, activeSubjectId, pinDropCoords]);
+  }, [subjects, viewpoints, activeSubjectId, pinDropCoords, hasFavorite]);
 
   return (
     <SafeAreaView style={styles.safe}>
