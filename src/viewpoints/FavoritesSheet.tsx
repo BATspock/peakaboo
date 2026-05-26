@@ -53,43 +53,43 @@ export default function FavoritesSheet({
       ) : (
         <View style={{ gap: 8 }}>
           {items.map(({ viewpoint, subject }) => (
-            <Pressable
-              key={viewpoint.id}
-              onPress={() => {
-                onClose();
-                // Defer to the next tick so the close animation can start before
-                // the next sheet opens — avoids a visual stutter on web.
-                setTimeout(() => onPickViewpoint(viewpoint.id), 50);
-              }}
-              style={styles.row}
-            >
-              <View style={styles.iconBubble}>
-                <Text style={styles.iconText}>★</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text numberOfLines={1} style={styles.name}>
-                  {viewpoint.name}
-                </Text>
-                {subject ? (
-                  <Text style={styles.subjectLine}>View of {subject.name}</Text>
-                ) : null}
-                {viewpoint.description ? (
-                  <Text numberOfLines={1} style={styles.description}>
-                    {viewpoint.description}
+            <View key={viewpoint.id} style={styles.row}>
+              <Pressable
+                style={styles.rowBody}
+                onPress={() => {
+                  onClose();
+                  // Defer slightly so the close animation can start cleanly
+                  // before the next sheet opens — avoids a visual stutter on web.
+                  setTimeout(() => onPickViewpoint(viewpoint.id), 50);
+                }}
+              >
+                <View style={styles.iconBubble}>
+                  <Text style={styles.iconText}>★</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={styles.name}>
+                    {viewpoint.name}
                   </Text>
-                ) : null}
-              </View>
+                  {subject ? (
+                    <Text style={styles.subjectLine}>
+                      View of {subject.name}
+                    </Text>
+                  ) : null}
+                  {viewpoint.description ? (
+                    <Text numberOfLines={1} style={styles.description}>
+                      {viewpoint.description}
+                    </Text>
+                  ) : null}
+                </View>
+              </Pressable>
               <Pressable
                 hitSlop={10}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  toggle(viewpoint.id);
-                }}
+                onPress={() => toggle(viewpoint.id)}
                 style={styles.removeBtn}
               >
                 <Text style={styles.removeText}>Remove</Text>
               </Pressable>
-            </Pressable>
+            </View>
           ))}
         </View>
       )}
@@ -108,11 +108,18 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    gap: 8,
+    paddingRight: 12,
     borderRadius: 12,
     backgroundColor: "#F8FAFC",
+  },
+  rowBody: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingLeft: 12,
   },
   iconBubble: {
     width: 36,

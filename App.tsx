@@ -22,13 +22,15 @@ import ViewpointSheet from "./src/sightings/ViewpointSheet";
 import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
 import FavoritesSheet from "./src/viewpoints/FavoritesSheet";
 import FavoritesButton from "./src/viewpoints/FavoritesButton";
-import { useFavorites } from "./src/data/useFavorites";
+import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <Home />
+        <FavoritesProvider>
+          <Home />
+        </FavoritesProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
