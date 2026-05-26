@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import RNMaps, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 
@@ -18,11 +18,22 @@ export type MapRegion = {
   longitudeDelta: number;
 };
 
+export type CameraTarget = {
+  latitude: number;
+  longitude: number;
+  // Optional override on the region delta when flying to this target.
+  // If omitted, falls back to the initial region's delta.
+  delta?: number;
+  // Bumped externally when the same coordinates should re-trigger animation.
+  nonce?: number;
+};
+
 type Props = {
   region: MapRegion;
   markers: MapMarker[];
   onMarkerPress?: (id: string) => void;
   onMapPress?: (coords: { latitude: number; longitude: number }) => void;
+  cameraTarget?: CameraTarget | null;
 };
 
 export default function MapView({
@@ -30,10 +41,28 @@ export default function MapView({
   markers,
   onMarkerPress,
   onMapPress,
+  cameraTarget,
 }: Props) {
+  const mapRef = useRef<RNMaps>(null);
+
+  useEffect(() => {
+    if (!cameraTarget || !mapRef.current) return;
+    const delta = cameraTarget.delta ?? 0.6;
+    mapRef.current.animateToRegion(
+      {
+        latitude: cameraTarget.latitude,
+        longitude: cameraTarget.longitude,
+        latitudeDelta: delta,
+        longitudeDelta: delta,
+      },
+      600,
+    );
+  }, [cameraTarget]);
+
   return (
     <View style={styles.container}>
       <RNMaps
+        ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={region}

@@ -14,7 +14,8 @@ import {
 } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { colors, radii } from "./src/theme";
-import MapView, { MapMarker } from "./src/components/MapView";
+import MapView, { MapMarker, CameraTarget } from "./src/components/MapView";
+import WelcomeBanner from "./src/components/WelcomeBanner";
 import { REGION_DEFAULT } from "./src/data/seed";
 import { usePlaces } from "./src/data/usePlaces";
 import { AuthProvider } from "./src/auth/AuthContext";
@@ -23,6 +24,8 @@ import ViewpointSheet from "./src/sightings/ViewpointSheet";
 import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
 import FavoritesSheet from "./src/viewpoints/FavoritesSheet";
 import FavoritesButton from "./src/viewpoints/FavoritesButton";
+import HistorySheet from "./src/sightings/HistorySheet";
+import HistoryButton from "./src/sightings/HistoryButton";
 import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
 
 export default function App() {
@@ -44,6 +47,7 @@ function Home() {
   const [openViewpointId, setOpenViewpointId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [pinDropMode, setPinDropMode] = useState(false);
   const [pinDropCoords, setPinDropCoords] = useState<{
     latitude: number;
@@ -70,6 +74,21 @@ function Home() {
       setActiveSubjectId(subjects[0].id);
     }
   }, [subjects, activeSubjectId]);
+
+  // Camera target — bumps when the user picks a subject pill so the map
+  // animates to that subject. nonce ensures repeated taps still re-center.
+  const [cameraNonce, setCameraNonce] = useState(0);
+  const cameraTarget: CameraTarget | null = useMemo(() => {
+    if (activeSubjectId === null) return null;
+    const s = subjects.find((s) => s.id === activeSubjectId);
+    if (!s) return null;
+    return {
+      latitude: s.latitude,
+      longitude: s.longitude,
+      delta: 1.4,
+      nonce: cameraNonce,
+    };
+  }, [activeSubjectId, subjects, cameraNonce]);
 
   const filteredSubjects = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -127,9 +146,11 @@ function Home() {
           {loading && <Text style={styles.titleHint}>loading…</Text>}
           {error && <Text style={styles.titleError}>offline · seed data</Text>}
           <View style={styles.titleSpacer} />
+          <HistoryButton onPress={() => setHistoryOpen(true)} />
           <FavoritesButton onPress={() => setFavoritesOpen(true)} />
           <SignInButton />
         </View>
+        <WelcomeBanner />
         <TextInput
           style={styles.search}
           placeholder="Search a peak or landmark…"
@@ -152,7 +173,10 @@ function Home() {
               key={s.id}
               label={s.name}
               active={activeSubjectId === s.id}
-              onPress={() => setActiveSubjectId(s.id)}
+              onPress={() => {
+                setActiveSubjectId(s.id);
+                setCameraNonce((n) => n + 1);
+              }}
             />
           ))}
         </ScrollView>
@@ -162,6 +186,7 @@ function Home() {
         <MapView
           region={REGION_DEFAULT}
           markers={markers}
+          cameraTarget={cameraTarget}
           onMarkerPress={(id) => {
             if (pinDropMode) return;
             if (id.startsWith("viewpoint:")) {
@@ -227,6 +252,12 @@ function Home() {
         onClose={() => setFavoritesOpen(false)}
         subjects={subjects}
         viewpoints={viewpoints}
+        onPickViewpoint={(id) => setOpenViewpointId(id)}
+      />
+
+      <HistorySheet
+        visible={historyOpen}
+        onClose={() => setHistoryOpen(false)}
         onPickViewpoint={(id) => setOpenViewpointId(id)}
       />
     </SafeAreaView>

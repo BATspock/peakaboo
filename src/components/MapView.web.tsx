@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   APIProvider,
   Map,
   AdvancedMarker,
   Pin,
+  useMap,
 } from "@vis.gl/react-google-maps";
 
 export type MapMarker = {
@@ -23,18 +24,37 @@ export type MapRegion = {
   longitudeDelta: number;
 };
 
+export type CameraTarget = {
+  latitude: number;
+  longitude: number;
+  delta?: number;
+  nonce?: number;
+};
+
 type Props = {
   region: MapRegion;
   markers: MapMarker[];
   onMarkerPress?: (id: string) => void;
   onMapPress?: (coords: { latitude: number; longitude: number }) => void;
+  cameraTarget?: CameraTarget | null;
 };
 
 const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 function regionToZoom(latitudeDelta: number) {
-  // rough mapping: smaller delta = higher zoom
   return Math.max(2, Math.min(20, Math.round(Math.log2(360 / latitudeDelta))));
+}
+
+function CameraController({ target }: { target?: CameraTarget | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map || !target) return;
+    map.panTo({ lat: target.latitude, lng: target.longitude });
+    if (target.delta !== undefined) {
+      map.setZoom(regionToZoom(target.delta));
+    }
+  }, [map, target]);
+  return null;
 }
 
 export default function MapView({
@@ -42,6 +62,7 @@ export default function MapView({
   markers,
   onMarkerPress,
   onMapPress,
+  cameraTarget,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -61,6 +82,7 @@ export default function MapView({
             });
           }}
         >
+          <CameraController target={cameraTarget} />
           {markers.map((m) => (
             <AdvancedMarker
               key={m.id}
