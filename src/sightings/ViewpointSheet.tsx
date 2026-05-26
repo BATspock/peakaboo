@@ -1,10 +1,13 @@
 import React, { useState } from "react";
-import { View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import BottomSheet from "../components/BottomSheet";
 import SightingForm from "./SightingForm";
 import SightingsFeed from "./SightingsFeed";
 import ViewpointRating from "../viewpoints/ViewpointRating";
 import ImageLightbox from "../components/ImageLightbox";
+import { useAuth } from "../auth/AuthContext";
+import { useFavorites } from "../data/useFavorites";
+import { openInMaps } from "../lib/maps";
 import type { Subject, Viewpoint } from "../data/types";
 
 type Props = {
@@ -14,11 +17,33 @@ type Props = {
 };
 
 export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
+  const { session, signInWithGoogle } = useAuth();
+  const { has, toggle } = useFavorites();
   const [refreshKey, setRefreshKey] = useState(0);
   const [lightbox, setLightbox] = useState<{
     urls: string[];
     index: number;
   } | null>(null);
+
+  const isFav = viewpoint ? has(viewpoint.id) : false;
+
+  function handleNavigate() {
+    if (!viewpoint) return;
+    openInMaps({
+      latitude: viewpoint.latitude,
+      longitude: viewpoint.longitude,
+      label: viewpoint.name,
+    });
+  }
+
+  async function handleFavorite() {
+    if (!viewpoint) return;
+    if (!session) {
+      signInWithGoogle().catch(() => undefined);
+      return;
+    }
+    await toggle(viewpoint.id);
+  }
 
   return (
     <>
@@ -30,6 +55,34 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
       >
         {viewpoint && subject ? (
           <View style={{ gap: 24 }}>
+            <View style={styles.actionRow}>
+              <Pressable onPress={handleNavigate} style={styles.actionBtn}>
+                <Text style={styles.actionIcon}>↗</Text>
+                <Text style={styles.actionText}>Directions</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleFavorite}
+                style={[styles.actionBtn, isFav && styles.actionBtnActive]}
+              >
+                <Text
+                  style={[
+                    styles.actionIcon,
+                    isFav && styles.actionIconActive,
+                  ]}
+                >
+                  {isFav ? "★" : "☆"}
+                </Text>
+                <Text
+                  style={[
+                    styles.actionText,
+                    isFav && styles.actionTextActive,
+                  ]}
+                >
+                  {isFav ? "Saved" : session ? "Save" : "Sign in to save"}
+                </Text>
+              </Pressable>
+            </View>
+
             <SightingForm
               viewpointId={viewpoint.id}
               subjectName={subject.name}
@@ -54,3 +107,22 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  actionRow: { flexDirection: "row", gap: 8 },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+  },
+  actionBtnActive: { backgroundColor: "#FEF3C7" },
+  actionIcon: { fontSize: 16, color: "#0F172A", fontWeight: "700" },
+  actionIconActive: { color: "#B45309" },
+  actionText: { fontSize: 13, fontWeight: "700", color: "#0F172A" },
+  actionTextActive: { color: "#92400E" },
+});
