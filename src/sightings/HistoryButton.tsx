@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../auth/AuthContext";
 import { colors, radii } from "../theme";
 
@@ -12,7 +13,7 @@ export default function HistoryButton({ onPress }: Props) {
   if (!session) return null;
   return (
     <Pressable onPress={onPress} style={styles.btn} hitSlop={6}>
-      <Text style={styles.icon}>👁</Text>
+      <Ionicons name="time-outline" size={18} color={colors.forest} />
     </Pressable>
   );
 }
@@ -28,5 +29,4 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.leaf,
   },
-  icon: { fontSize: 16 },
 });

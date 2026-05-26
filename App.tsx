@@ -1,21 +1,14 @@
 import React, { useMemo, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaProvider,
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "./src/theme";
 import MapView, { MapMarker, CameraTarget } from "./src/components/MapView";
-import WelcomeBanner from "./src/components/WelcomeBanner";
 import { REGION_DEFAULT } from "./src/data/seed";
 import { usePlaces } from "./src/data/usePlaces";
 import { AuthProvider } from "./src/auth/AuthContext";
@@ -42,7 +35,6 @@ export default function App() {
 
 function Home() {
   const insets = useSafeAreaInsets();
-  const [query, setQuery] = useState("");
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [openViewpointId, setOpenViewpointId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -90,15 +82,9 @@ function Home() {
     };
   }, [activeSubjectId, subjects, cameraNonce]);
 
-  const filteredSubjects = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return subjects;
-    return subjects.filter((s) => s.name.toLowerCase().includes(q));
-  }, [query, subjects]);
-
   const markers: MapMarker[] = useMemo(() => {
     const subjectMarkers: MapMarker[] = subjects
-      .filter((s) => activeSubjectId === null || s.id === activeSubjectId)
+      .filter((s) => s.id === activeSubjectId)
       .map((s) => ({
         id: `subject:${s.id}`,
         latitude: s.latitude,
@@ -109,7 +95,7 @@ function Home() {
       }));
 
     const viewpointMarkers: MapMarker[] = viewpoints
-      .filter((v) => activeSubjectId === null || v.subjectId === activeSubjectId)
+      .filter((v) => v.subjectId === activeSubjectId)
       .map((v) => ({
         id: `viewpoint:${v.id}`,
         latitude: v.latitude,
@@ -150,25 +136,12 @@ function Home() {
           <FavoritesButton onPress={() => setFavoritesOpen(true)} />
           <SignInButton />
         </View>
-        <WelcomeBanner />
-        <TextInput
-          style={styles.search}
-          placeholder="Search a peak or landmark…"
-          placeholderTextColor={colors.textTertiary}
-          value={query}
-          onChangeText={setQuery}
-        />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.pillRow}
         >
-          <SubjectPill
-            label="All"
-            active={activeSubjectId === null}
-            onPress={() => setActiveSubjectId(null)}
-          />
-          {filteredSubjects.map((s) => (
+          {subjects.map((s) => (
             <SubjectPill
               key={s.id}
               label={s.name}
@@ -206,6 +179,7 @@ function Home() {
             pointerEvents="none"
             style={[styles.dropBanner, { top: 16 + insets.top }]}
           >
+            <Ionicons name="location" size={16} color={colors.textOn} />
             <Text style={styles.dropBannerText}>
               Tap anywhere on the map to drop a pin.
             </Text>
@@ -219,7 +193,7 @@ function Home() {
             setAddOpen(true);
           }}
         >
-          <Text style={styles.fabPlus}>＋</Text>
+          <Ionicons name="add" size={30} color={colors.textOn} />
         </Pressable>
       </View>
 
@@ -299,7 +273,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   titleSpacer: { flex: 1 },
   title: {
@@ -314,15 +288,7 @@ const styles = StyleSheet.create({
   },
   titleHint: { fontSize: 12, color: colors.textTertiary, fontWeight: "500" },
   titleError: { fontSize: 12, color: colors.ember, fontWeight: "600" },
-  search: {
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: radii.md,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: colors.text,
-  },
-  pillRow: { paddingTop: 10, gap: 8 },
+  pillRow: { paddingTop: 4, gap: 8 },
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -350,21 +316,18 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
-  fabPlus: {
-    color: colors.textOn,
-    fontSize: 28,
-    fontWeight: "700",
-    lineHeight: 30,
-  },
   dropBanner: {
     position: "absolute",
     left: 16,
     right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     backgroundColor: colors.forest,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: radii.md,
-    alignItems: "center",
   },
   dropBannerText: { color: colors.textOn, fontWeight: "600", fontSize: 13 },
 });

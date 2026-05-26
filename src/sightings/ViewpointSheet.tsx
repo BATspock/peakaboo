@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../components/BottomSheet";
 import SightingForm from "./SightingForm";
 import SightingsFeed from "./SightingsFeed";
@@ -58,21 +59,22 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
           <View style={{ gap: 24 }}>
             <View style={styles.actionRow}>
               <Pressable onPress={handleNavigate} style={styles.actionBtn}>
-                <Text style={styles.actionIcon}>↗</Text>
+                <Ionicons
+                  name="navigate"
+                  size={16}
+                  color={colors.text}
+                />
                 <Text style={styles.actionText}>Directions</Text>
               </Pressable>
               <Pressable
                 onPress={handleFavorite}
                 style={[styles.actionBtn, isFav && styles.actionBtnActive]}
               >
-                <Text
-                  style={[
-                    styles.actionIcon,
-                    isFav && styles.actionIconActive,
-                  ]}
-                >
-                  {isFav ? "★" : "☆"}
-                </Text>
+                <Ionicons
+                  name={isFav ? "bookmark" : "bookmark-outline"}
+                  size={16}
+                  color={isFav ? colors.ember : colors.text}
+                />
                 <Text
                   style={[
                     styles.actionText,
@@ -127,8 +129,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.peakSoft,
     borderColor: colors.peak,
   },
-  actionIcon: { fontSize: 16, color: colors.text, fontWeight: "700" },
-  actionIconActive: { color: colors.ember },
   actionText: { fontSize: 13, fontWeight: "700", color: colors.text },
   actionTextActive: { color: colors.emberDark },
 });

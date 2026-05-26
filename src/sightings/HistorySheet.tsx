@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../components/BottomSheet";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
@@ -124,9 +125,11 @@ export default function HistorySheet({
                   <Image source={{ uri: thumbUrl }} style={styles.thumb} />
                 ) : (
                   <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                    <Text style={styles.thumbPlaceholderText}>
-                      {r.visible ? "👁" : "—"}
-                    </Text>
+                    <Ionicons
+                      name={r.visible ? "eye-outline" : "eye-off-outline"}
+                      size={20}
+                      color={colors.textSecondary}
+                    />
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
@@ -203,7 +206,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  thumbPlaceholderText: { fontSize: 18, color: colors.textSecondary },
   headerLine: {
     flexDirection: "row",
     justifyContent: "space-between",

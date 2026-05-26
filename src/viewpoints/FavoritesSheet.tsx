@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../components/BottomSheet";
 import { useFavorites } from "../data/useFavorites";
 import type { Subject, Viewpoint } from "../data/types";
@@ -40,7 +41,7 @@ export default function FavoritesSheet({
       title="Saved viewpoints"
       subtitle={
         items.length === 0
-          ? "Tap ☆ Save inside any viewpoint to add it here."
+          ? "Tap Save inside any viewpoint to add it here."
           : `${items.length} saved`
       }
     >
@@ -65,7 +66,7 @@ export default function FavoritesSheet({
                 }}
               >
                 <View style={styles.iconBubble}>
-                  <Text style={styles.iconText}>★</Text>
+                  <Ionicons name="bookmark" size={16} color={colors.ember} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={1} style={styles.name}>
@@ -132,7 +133,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconText: { fontSize: 18, color: colors.ember },
   name: { fontSize: 14, fontWeight: "700", color: colors.text },
   subjectLine: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
   description: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },

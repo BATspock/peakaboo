@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../auth/AuthContext";
 import { useFavorites } from "../data/useFavorites";
 import { colors, radii } from "../theme";
@@ -16,7 +17,7 @@ export default function FavoritesButton({ onPress }: Props) {
 
   return (
     <Pressable onPress={onPress} style={styles.btn} hitSlop={6}>
-      <Text style={styles.icon}>★</Text>
+      <Ionicons name="bookmark" size={18} color={colors.ember} />
       {ids.size > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{ids.size}</Text>
@@ -35,7 +36,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  icon: { fontSize: 18, color: colors.ember },
   badge: {
     position: "absolute",
     top: -2,

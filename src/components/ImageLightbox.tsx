@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
   urls: string[];
@@ -78,7 +79,7 @@ export default function ImageLightbox({ urls, index, onClose }: Props) {
           {current + 1} / {urls.length}
         </Text>
         <Pressable hitSlop={12} onPress={onClose} style={styles.closeBtn}>
-          <Text style={styles.closeText}>✕</Text>
+          <Ionicons name="close" size={20} color="#FFFFFF" />
         </Pressable>
       </View>
 
@@ -87,7 +88,7 @@ export default function ImageLightbox({ urls, index, onClose }: Props) {
           onPress={() => setCurrent(current - 1)}
           style={[styles.navBtn, styles.navLeft]}
         >
-          <Text style={styles.navText}>‹</Text>
+          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
         </Pressable>
       ) : null}
 
@@ -96,7 +97,7 @@ export default function ImageLightbox({ urls, index, onClose }: Props) {
           onPress={() => setCurrent(current + 1)}
           style={[styles.navBtn, styles.navRight]}
         >
-          <Text style={styles.navText}>›</Text>
+          <Ionicons name="chevron-forward" size={28} color="#FFFFFF" />
         </Pressable>
       ) : null}
     </Modal>

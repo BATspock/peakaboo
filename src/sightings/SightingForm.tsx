@@ -16,6 +16,7 @@ import type { SightingCondition } from "../data/types";
 import { viewpointDateKey } from "../lib/time";
 import { pickAndUploadImages, type UploadedImage } from "./uploadImages";
 import { colors, radii } from "../theme";
+import { Ionicons } from "@expo/vector-icons";
 
 const CONDITIONS: SightingCondition[] = [
   "clear",
@@ -381,7 +382,11 @@ export default function SightingForm({
               <ActivityIndicator />
             ) : (
               <>
-                <Text style={styles.addPhotoPlus}>+</Text>
+                <Ionicons
+                  name="camera-outline"
+                  size={22}
+                  color={colors.textSecondary}
+                />
                 <Text style={styles.addPhotoText}>Add</Text>
               </>
             )}
@@ -411,9 +416,16 @@ export default function SightingForm({
           </Text>
         </Pressable>
         {savedAt && Date.now() - savedAt < 4000 ? (
-          <Text style={styles.savedHint}>
-            ✓ Saved — your sighting is live in the feed below.
-          </Text>
+          <View style={styles.savedHintRow}>
+            <Ionicons
+              name="checkmark-circle"
+              size={14}
+              color={colors.forestSoft}
+            />
+            <Text style={styles.savedHint}>
+              Saved — your sighting is live in the feed below.
+            </Text>
+          </View>
         ) : null}
       </View>
     </View>
@@ -568,12 +580,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   primaryBtnText: { color: colors.textOn, fontWeight: "700", fontSize: 15 },
+  savedHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginTop: 4,
+  },
   savedHint: {
     color: colors.forestSoft,
     fontSize: 12,
     fontWeight: "600",
-    textAlign: "center",
-    marginTop: 4,
   },
   imageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   imageTile: {
@@ -595,7 +612,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  addPhotoPlus: { fontSize: 22, color: colors.textSecondary, lineHeight: 24 },
-  addPhotoText: { fontSize: 11, color: colors.textSecondary, fontWeight: "600" },
+  addPhotoText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: "600",
+    marginTop: 2,
+  },
   helperText: { fontSize: 11, color: colors.textTertiary, marginTop: 4 },
 });

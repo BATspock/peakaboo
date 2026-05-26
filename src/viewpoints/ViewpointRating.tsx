@@ -12,6 +12,7 @@ import {
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
 import { colors, radii } from "../theme";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
   viewpointId: string;
@@ -133,34 +134,37 @@ export default function ViewpointRating({ viewpointId }: Props) {
       <View style={styles.headerRow}>
         <Text style={styles.heading}>Rate this viewpoint</Text>
         {aggregate.count > 0 ? (
-          <Text style={styles.aggregate}>
-            {aggregate.average?.toFixed(1)} ★ · {aggregate.count} rating
-            {aggregate.count === 1 ? "" : "s"}
-          </Text>
+          <View style={styles.aggregateRow}>
+            <Ionicons name="star" size={12} color={colors.peak} />
+            <Text style={styles.aggregate}>
+              {aggregate.average?.toFixed(1)} · {aggregate.count} rating
+              {aggregate.count === 1 ? "" : "s"}
+            </Text>
+          </View>
         ) : (
           <Text style={styles.aggregate}>No ratings yet</Text>
         )}
       </View>
 
       <View style={styles.starRow}>
-        {STARS.map((n) => (
-          <Pressable
-            key={n}
-            onPress={() => session && setStars(n)}
-            disabled={!session}
-            hitSlop={6}
-          >
-            <Text
-              style={[
-                styles.star,
-                stars !== null && n <= stars && styles.starActive,
-                !session && styles.starDisabled,
-              ]}
+        {STARS.map((n) => {
+          const filled = stars !== null && n <= stars;
+          return (
+            <Pressable
+              key={n}
+              onPress={() => session && setStars(n)}
+              disabled={!session}
+              hitSlop={6}
+              style={!session ? { opacity: 0.7 } : undefined}
             >
-              ★
-            </Text>
-          </Pressable>
-        ))}
+              <Ionicons
+                name={filled ? "star" : "star-outline"}
+                size={30}
+                color={filled ? colors.peak : colors.border}
+              />
+            </Pressable>
+          );
+        })}
       </View>
 
       {session ? (
@@ -186,7 +190,14 @@ export default function ViewpointRating({ viewpointId }: Props) {
             </Text>
           </Pressable>
           {savedAt && Date.now() - savedAt < 4000 ? (
-            <Text style={styles.savedHint}>✓ Rating saved.</Text>
+            <View style={styles.savedHintRow}>
+              <Ionicons
+                name="checkmark-circle"
+                size={14}
+                color={colors.forestSoft}
+              />
+              <Text style={styles.savedHint}>Rating saved.</Text>
+            </View>
           ) : null}
         </>
       ) : (
@@ -218,11 +229,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   heading: { fontSize: 14, fontWeight: "700", color: colors.text },
+  aggregateRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   aggregate: { fontSize: 12, color: colors.textSecondary, fontWeight: "600" },
   starRow: { flexDirection: "row", gap: 4 },
-  star: { fontSize: 30, color: colors.border },
-  starActive: { color: colors.peak },
-  starDisabled: { opacity: 0.7 },
   review: {
     backgroundColor: colors.surface,
     borderRadius: radii.sm,
@@ -240,10 +249,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveBtnText: { color: colors.textOn, fontWeight: "700", fontSize: 14 },
+  savedHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
   savedHint: {
     color: colors.forestSoft,
     fontSize: 12,
     fontWeight: "600",
-    textAlign: "center",
   },
 });

@@ -15,6 +15,7 @@ import { useAuth } from "../auth/AuthContext";
 import { supabase } from "../lib/supabase";
 import type { Subject } from "../data/types";
 import { colors, radii } from "../theme";
+import { Ionicons } from "@expo/vector-icons";
 
 type Mode = "current" | "pin" | "coords";
 
@@ -268,8 +269,9 @@ export default function AddViewpointSheet({
 
         {coords ? (
           <View style={styles.coordsConfirm}>
+            <Ionicons name="location" size={14} color={colors.forest} />
             <Text style={styles.coordsConfirmText}>
-              📍 {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+              {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
             </Text>
           </View>
         ) : null}
@@ -395,6 +397,9 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 60, textAlignVertical: "top" },
   coordRow: { flexDirection: "row", gap: 8 },
   coordsConfirm: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: colors.leafBg,
     borderRadius: radii.sm,
     paddingVertical: 10,

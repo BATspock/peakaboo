@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../theme";
 
 type Props = {
@@ -55,7 +56,7 @@ export default function BottomSheet({
                 ) : null}
               </View>
               <Pressable hitSlop={8} onPress={onClose} style={styles.closeBtn}>
-                <Text style={styles.closeText}>✕</Text>
+                <Ionicons name="close" size={18} color={colors.textSecondary} />
               </Pressable>
             </View>
             <ScrollView
