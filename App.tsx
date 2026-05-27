@@ -130,7 +130,6 @@ function Home() {
             <Text style={styles.titleAboo}>Aboo</Text>
           </Text>
           {loading && <Text style={styles.titleHint}>loading…</Text>}
-          {error && <Text style={styles.titleError}>offline · seed data</Text>}
           <View style={styles.titleSpacer} />
           <HistoryButton onPress={() => setHistoryOpen(true)} />
           <FavoritesButton onPress={() => setFavoritesOpen(true)} />
