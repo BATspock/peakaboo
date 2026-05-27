@@ -31,6 +31,7 @@ export default function AuthSheet() {
   const [busy, setBusy] = useState<"google" | "email" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
 
   function reset() {
     setMode("signin");
@@ -40,6 +41,7 @@ export default function AuthSheet() {
     setError(null);
     setBusy(null);
     setResetSent(false);
+    setConfirmEmail(null);
   }
 
   function handleClose() {
@@ -94,11 +96,17 @@ export default function AuthSheet() {
       }
       setBusy("email");
       try {
-        await signUpWithEmail({
+        const result = await signUpWithEmail({
           email: email.trim(),
           password,
           displayName: displayName.trim(),
         });
+        if (result.needsEmailConfirmation) {
+          // Account created but Supabase requires email verification.
+          // Surface this clearly so the user knows what's happening.
+          setConfirmEmail(email.trim());
+        }
+        // Otherwise: SIGNED_IN auth event fires and the sheet closes itself.
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -144,9 +152,31 @@ export default function AuthSheet() {
     <BottomSheet
       visible={authSheetOpen}
       onClose={handleClose}
-      title={titleByMode[mode]}
-      subtitle={subtitleByMode[mode]}
+      title={confirmEmail ? "Check your email" : titleByMode[mode]}
+      subtitle={
+        confirmEmail
+          ? `We sent a confirmation link to ${confirmEmail}.`
+          : subtitleByMode[mode]
+      }
     >
+      {confirmEmail ? (
+        <View style={{ gap: 12 }}>
+          <Text style={styles.confirmText}>
+            Click the link in the email to activate your account, then come
+            back here and sign in. The email may land in your spam folder.
+          </Text>
+          <Pressable
+            onPress={() => {
+              setConfirmEmail(null);
+              setMode("signin");
+              setPassword("");
+            }}
+            style={styles.primaryBtn}
+          >
+            <Text style={styles.primaryBtnText}>Got it — back to sign in</Text>
+          </Pressable>
+        </View>
+      ) : (
       <View style={{ gap: 16 }}>
         {mode !== "forgot" ? (
           <Pressable
@@ -263,6 +293,7 @@ export default function AuthSheet() {
           ) : null}
         </View>
       </View>
+      )}
     </BottomSheet>
   );
 }
@@ -318,4 +349,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
+  confirmText: { fontSize: 14, color: colors.text, lineHeight: 20 },
 });

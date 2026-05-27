@@ -22,7 +22,7 @@ type AuthState = {
     email: string;
     password: string;
     displayName: string;
-  }) => Promise<void>;
+  }) => Promise<{ needsEmailConfirmation: boolean }>;
   signInWithEmail: (args: { email: string; password: string }) => Promise<void>;
   resetPasswordForEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -102,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string;
     password: string;
     displayName: string;
-  }) {
-    const { error } = await supabase.auth.signUp({
+  }): Promise<{ needsEmailConfirmation: boolean }> {
+    const { data, error } = await supabase.auth.signUp({
       email: args.email,
       password: args.password,
       options: {
@@ -111,6 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     if (error) throw error;
+    // When "Confirm email" is ON in Supabase, signUp returns a user but no
+    // session — the user must click the email link before they can sign in.
+    return { needsEmailConfirmation: !data.session };
   }
 
   async function signInWithEmail(args: { email: string; password: string }) {
