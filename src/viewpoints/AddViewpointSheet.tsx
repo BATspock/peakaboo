@@ -38,7 +38,7 @@ export default function AddViewpointSheet({
   onRequestPinDrop,
   onCreated,
 }: Props) {
-  const { session, signInWithGoogle } = useAuth();
+  const { session, openAuthSheet } = useAuth();
   const [mode, setMode] = useState<Mode>("current");
   const [coords, setCoords] = useState<Coords>(null);
   const [coordInput, setCoordInput] = useState({ lat: "", lng: "" });
@@ -84,7 +84,7 @@ export default function AddViewpointSheet({
           </Text>
           <Pressable
             style={styles.primaryBtn}
-            onPress={() => signInWithGoogle().catch(() => undefined)}
+            onPress={openAuthSheet}
           >
             <Text style={styles.primaryBtnText}>Sign in to add a viewpoint</Text>
           </Pressable>

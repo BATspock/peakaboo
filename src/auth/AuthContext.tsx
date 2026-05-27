@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -17,7 +18,18 @@ type AuthState = {
   session: Session | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signUpWithEmail: (args: {
+    email: string;
+    password: string;
+    displayName: string;
+  }) => Promise<void>;
+  signInWithEmail: (args: { email: string; password: string }) => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  // Sheet control — any component can prompt the user to sign in.
+  authSheetOpen: boolean;
+  openAuthSheet: () => void;
+  closeAuthSheet: () => void;
 };
 
 const AuthCtx = createContext<AuthState | null>(null);
@@ -25,6 +37,7 @@ const AuthCtx = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authSheetOpen, setAuthSheetOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -35,8 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
+      if (event === "SIGNED_IN") setAuthSheetOpen(false);
     });
 
     return () => {
@@ -73,7 +87,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     if (result.type !== "success" || !result.url) return;
 
-    // Parse the access_token + refresh_token from the URL fragment Supabase appends.
     const url = new URL(result.url);
     const params = new URLSearchParams(
       url.hash.startsWith("#") ? url.hash.slice(1) : url.search,
@@ -85,13 +98,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function signUpWithEmail(args: {
+    email: string;
+    password: string;
+    displayName: string;
+  }) {
+    const { error } = await supabase.auth.signUp({
+      email: args.email,
+      password: args.password,
+      options: {
+        data: { full_name: args.displayName, name: args.displayName },
+      },
+    });
+    if (error) throw error;
+  }
+
+  async function signInWithEmail(args: { email: string; password: string }) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: args.email,
+      password: args.password,
+    });
+    if (error) throw error;
+  }
+
+  async function resetPasswordForEmail(email: string) {
+    const redirectTo =
+      Platform.OS === "web"
+        ? `${window.location.origin}/reset-password`
+        : AuthSession.makeRedirectUri({
+            scheme: "peakaboo",
+            path: "reset-password",
+          });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    if (error) throw error;
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
 
+  const openAuthSheet = useCallback(() => setAuthSheetOpen(true), []);
+  const closeAuthSheet = useCallback(() => setAuthSheetOpen(false), []);
+
   const value = useMemo<AuthState>(
-    () => ({ session, loading, signInWithGoogle, signOut }),
-    [session, loading],
+    () => ({
+      session,
+      loading,
+      signInWithGoogle,
+      signUpWithEmail,
+      signInWithEmail,
+      resetPasswordForEmail,
+      signOut,
+      authSheetOpen,
+      openAuthSheet,
+      closeAuthSheet,
+    }),
+    [session, loading, authSheetOpen, openAuthSheet, closeAuthSheet],
   );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;

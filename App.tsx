@@ -21,6 +21,8 @@ import HistorySheet from "./src/sightings/HistorySheet";
 import HistoryButton from "./src/sightings/HistoryButton";
 import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
 import PrivacyPolicy from "./src/screens/PrivacyPolicy";
+import ResetPasswordScreen from "./src/screens/ResetPassword";
+import AuthSheet from "./src/auth/AuthSheet";
 
 function getPath(): string {
   if (typeof window === "undefined") return "/";
@@ -36,7 +38,12 @@ export default function App() {
       ) : (
         <AuthProvider>
           <FavoritesProvider>
-            <Home />
+            {path.startsWith("/reset-password") ? (
+              <ResetPasswordScreen />
+            ) : (
+              <Home />
+            )}
+            <AuthSheet />
           </FavoritesProvider>
         </AuthProvider>
       )}

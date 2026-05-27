@@ -26,7 +26,7 @@ type Aggregate = {
 const STARS = [1, 2, 3, 4, 5] as const;
 
 export default function ViewpointRating({ viewpointId }: Props) {
-  const { session, signInWithGoogle } = useAuth();
+  const { session, openAuthSheet } = useAuth();
   const [aggregate, setAggregate] = useState<Aggregate>({
     average: null,
     count: 0,
@@ -202,7 +202,7 @@ export default function ViewpointRating({ viewpointId }: Props) {
         </>
       ) : (
         <Pressable
-          onPress={() => signInWithGoogle().catch(() => undefined)}
+          onPress={openAuthSheet}
           style={styles.saveBtn}
         >
           <Text style={styles.saveBtnText}>Sign in to rate</Text>

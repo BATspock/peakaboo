@@ -19,7 +19,7 @@ type Props = {
 };
 
 export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
-  const { session, signInWithGoogle } = useAuth();
+  const { session, openAuthSheet } = useAuth();
   const { has, toggle } = useFavorites();
   const [refreshKey, setRefreshKey] = useState(0);
   const [lightbox, setLightbox] = useState<{
@@ -41,7 +41,7 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
   async function handleFavorite() {
     if (!viewpoint) return;
     if (!session) {
-      signInWithGoogle().catch(() => undefined);
+      openAuthSheet();
       return;
     }
     await toggle(viewpoint.id);

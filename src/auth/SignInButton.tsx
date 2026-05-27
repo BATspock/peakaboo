@@ -1,30 +1,13 @@
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "./AuthContext";
 import { colors, radii } from "../theme";
 
 export default function SignInButton() {
-  const { session, signInWithGoogle, signOut, loading } = useAuth();
+  const { session, signOut, loading, openAuthSheet } = useAuth();
   const [busy, setBusy] = useState(false);
 
   if (loading) return null;
-
-  async function handleSignIn() {
-    setBusy(true);
-    try {
-      await signInWithGoogle();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (Platform.OS === "web") {
-        // eslint-disable-next-line no-alert
-        window.alert(`Sign-in failed: ${msg}`);
-      } else {
-        Alert.alert("Sign-in failed", msg);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function handleSignOut() {
     setBusy(true);
@@ -38,15 +21,13 @@ export default function SignInButton() {
   if (!session) {
     return (
       <Pressable
-        onPress={handleSignIn}
-        disabled={busy}
+        onPress={openAuthSheet}
         style={({ pressed }) => [
           styles.button,
           pressed && styles.buttonPressed,
-          busy && styles.buttonBusy,
         ]}
       >
-        <Text style={styles.buttonText}>{busy ? "…" : "Sign in"}</Text>
+        <Text style={styles.buttonText}>Sign in</Text>
       </Pressable>
     );
   }

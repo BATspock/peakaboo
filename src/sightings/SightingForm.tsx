@@ -53,7 +53,7 @@ export default function SightingForm({
   onSaved,
   onOpenLightbox,
 }: Props) {
-  const { session, signInWithGoogle } = useAuth();
+  const { session, openAuthSheet } = useAuth();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [hydrating, setHydrating] = useState<boolean>(!!session);
   const [saving, setSaving] = useState(false);
@@ -135,7 +135,7 @@ export default function SightingForm({
         </Text>
         <Pressable
           style={styles.primaryBtn}
-          onPress={() => signInWithGoogle().catch(() => undefined)}
+          onPress={openAuthSheet}
         >
           <Text style={styles.primaryBtnText}>Sign in to log a sighting</Text>
         </Pressable>
