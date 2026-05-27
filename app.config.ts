@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   android: {
     package: "com.batspock.peakaboo",
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#002244",
       foregroundImage: "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",

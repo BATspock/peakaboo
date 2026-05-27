@@ -20,15 +20,26 @@ import FavoritesButton from "./src/viewpoints/FavoritesButton";
 import HistorySheet from "./src/sightings/HistorySheet";
 import HistoryButton from "./src/sightings/HistoryButton";
 import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
+import PrivacyPolicy from "./src/screens/PrivacyPolicy";
+
+function getPath(): string {
+  if (typeof window === "undefined") return "/";
+  return window.location.pathname || "/";
+}
 
 export default function App() {
+  const path = getPath();
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <FavoritesProvider>
-          <Home />
-        </FavoritesProvider>
-      </AuthProvider>
+      {path.startsWith("/privacy") ? (
+        <PrivacyPolicy />
+      ) : (
+        <AuthProvider>
+          <FavoritesProvider>
+            <Home />
+          </FavoritesProvider>
+        </AuthProvider>
+      )}
     </SafeAreaProvider>
   );
 }
