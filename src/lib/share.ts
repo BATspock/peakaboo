@@ -16,32 +16,34 @@ export async function shareViewpoint(args: {
 }): Promise<ShareResult> {
   const { url, viewpointName, subjectName } = args;
   const title = `${viewpointName} on PeakAboo`;
-  const message = `${viewpointName} — a viewpoint for ${subjectName} on PeakAboo. ${url}`;
+  // Short text intro — intentionally does NOT include the URL, since some
+  // platforms concatenate text+url into a single string and we end up with
+  // garbage URLs like "/v/<uuid> Amazon office grace — a viewpoint..."
+  // when users copy from the share sheet.
+  const text = `${viewpointName} — a viewpoint for ${subjectName} on PeakAboo.`;
 
   if (Platform.OS === "web") {
-    // Prefer Web Share API when available (mobile browsers, some desktop).
     const nav: Navigator | undefined =
       typeof navigator !== "undefined" ? navigator : undefined;
 
     if (nav && typeof nav.share === "function") {
       try {
-        await nav.share({ title, text: message, url });
+        await nav.share({ title, text, url });
         return "shared";
       } catch (e) {
-        // User-cancelled the OS sheet — DOM throws AbortError. Treat as cancel.
         const name = e instanceof Error ? e.name : "";
         if (name === "AbortError") return "cancelled";
-        // Fall through to clipboard if the share API itself failed.
+        // Fall through to clipboard.
       }
     }
 
-    // Fallback: clipboard
+    // Fallback: copy ONLY the URL (no message) so pasting it into the
+    // address bar always Just Works.
     try {
       if (nav?.clipboard?.writeText) {
         await nav.clipboard.writeText(url);
         return "copied";
       }
-      // Older browsers — execCommand fallback (very rare today)
       if (typeof document !== "undefined") {
         const ta = document.createElement("textarea");
         ta.value = url;
@@ -59,9 +61,15 @@ export async function shareViewpoint(args: {
     return "failed";
   }
 
-  // Native
+  // Native — RN's Share takes either {message} or {url}. iOS keeps them
+  // separate; Android concatenates if you pass both. Pass message + url
+  // is the standard pattern and OS-native enough to be acceptable.
   try {
-    const result = await Share.share({ title, message, url });
+    const result = await Share.share({
+      title,
+      message: `${text} ${url}`,
+      url,
+    });
     if (result.action === Share.dismissedAction) return "cancelled";
     return "shared";
   } catch {

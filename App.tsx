@@ -30,9 +30,26 @@ function getPath(): string {
 }
 
 // /v/<viewpointId> → returns the id, else null.
+// Tolerant of trailing garbage after the UUID (e.g. message text accidentally
+// concatenated by share-sheet copy buttons that put text+url into one blob).
+const UUID_RE =
+  /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
 function viewpointIdFromPath(path: string): string | null {
-  const m = path.match(/^\/v\/([^/?#]+)/);
-  return m ? m[1] : null;
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(path);
+    } catch {
+      return path;
+    }
+  })();
+  if (!decoded.startsWith("/v/")) return null;
+  const tail = decoded.slice(3);
+  // Try strict-first match (clean UUID up to next separator), then fall
+  // back to "first UUID anywhere in the tail" for messy share blobs.
+  const strict = tail.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+  if (strict) return strict[1];
+  const loose = tail.match(UUID_RE);
+  return loose ? loose[1] : null;
 }
 
 export default function App() {
