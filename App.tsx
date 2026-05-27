@@ -29,6 +29,12 @@ function getPath(): string {
   return window.location.pathname || "/";
 }
 
+// /v/<viewpointId> → returns the id, else null.
+function viewpointIdFromPath(path: string): string | null {
+  const m = path.match(/^\/v\/([^/?#]+)/);
+  return m ? m[1] : null;
+}
+
 export default function App() {
   const path = getPath();
   return (
@@ -54,7 +60,9 @@ export default function App() {
 function Home() {
   const insets = useSafeAreaInsets();
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
-  const [openViewpointId, setOpenViewpointId] = useState<string | null>(null);
+  const [openViewpointId, setOpenViewpointId] = useState<string | null>(
+    () => viewpointIdFromPath(getPath()),
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -79,11 +87,41 @@ function Home() {
   );
 
   // Default the active filter to the first subject once data lands.
+  // If a /v/<id> deep link was followed, switch the active subject to
+  // match the linked viewpoint so its pin is on the visible map.
   React.useEffect(() => {
-    if (activeSubjectId === null && subjects.length > 0) {
+    if (subjects.length === 0) return;
+    if (openViewpointId) {
+      const linked = viewpoints.find((v) => v.id === openViewpointId);
+      if (linked && activeSubjectId !== linked.subjectId) {
+        setActiveSubjectId(linked.subjectId);
+        return;
+      }
+    }
+    if (activeSubjectId === null) {
       setActiveSubjectId(subjects[0].id);
     }
-  }, [subjects, activeSubjectId]);
+  }, [subjects, viewpoints, activeSubjectId, openViewpointId]);
+
+  // Reflect the open viewpoint in the URL on web so the address bar is
+  // always shareable. Native ignores.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const target = openViewpointId ? `/v/${openViewpointId}` : "/";
+    if (window.location.pathname !== target) {
+      window.history.replaceState(null, "", target);
+    }
+  }, [openViewpointId]);
+
+  // Keep state in sync if the user uses browser back/forward.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onPop() {
+      setOpenViewpointId(viewpointIdFromPath(getPath()));
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   // Camera target — bumps when the user picks a subject pill so the map
   // animates to that subject. nonce ensures repeated taps still re-center.

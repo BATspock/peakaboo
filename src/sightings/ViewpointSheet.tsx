@@ -9,6 +9,7 @@ import ImageLightbox from "../components/ImageLightbox";
 import { useAuth } from "../auth/AuthContext";
 import { useFavorites } from "../data/useFavorites";
 import { openInMaps } from "../lib/maps";
+import { shareViewpoint, viewpointShareUrl } from "../lib/share";
 import type { Subject, Viewpoint } from "../data/types";
 import { colors, radii } from "../theme";
 
@@ -28,6 +29,21 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
   } | null>(null);
 
   const isFav = viewpoint ? has(viewpoint.id) : false;
+  const [copied, setCopied] = useState(false);
+
+  async function handleShare() {
+    if (!viewpoint || !subject) return;
+    const url = viewpointShareUrl(viewpoint.id);
+    const result = await shareViewpoint({
+      url,
+      viewpointName: viewpoint.name,
+      subjectName: subject.name,
+    });
+    if (result === "copied") {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    }
+  }
 
   function handleNavigate() {
     if (!viewpoint) return;
@@ -59,11 +75,7 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
           <View style={{ gap: 24 }}>
             <View style={styles.actionRow}>
               <Pressable onPress={handleNavigate} style={styles.actionBtn}>
-                <Ionicons
-                  name="navigate"
-                  size={16}
-                  color={colors.text}
-                />
+                <Ionicons name="navigate" size={16} color={colors.text} />
                 <Text style={styles.actionText}>Directions</Text>
               </Pressable>
               <Pressable
@@ -82,6 +94,21 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
                   ]}
                 >
                   {isFav ? "Saved" : session ? "Save" : "Sign in to save"}
+                </Text>
+              </Pressable>
+              <Pressable onPress={handleShare} style={styles.actionBtn}>
+                <Ionicons
+                  name={copied ? "checkmark" : "share-social-outline"}
+                  size={16}
+                  color={copied ? colors.forestSoft : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.actionText,
+                    copied && { color: colors.forestSoft },
+                  ]}
+                >
+                  {copied ? "Copied" : "Share"}
                 </Text>
               </Pressable>
             </View>
