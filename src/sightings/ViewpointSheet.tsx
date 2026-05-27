@@ -33,6 +33,10 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
 
   async function handleShare() {
     if (!viewpoint || !subject) return;
+    if (!session) {
+      openAuthSheet();
+      return;
+    }
     const url = viewpointShareUrl(viewpoint.id);
     const result = await shareViewpoint({
       url,
@@ -108,7 +112,7 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
                     copied && { color: colors.forestSoft },
                   ]}
                 >
-                  {copied ? "Copied" : "Share"}
+                  {copied ? "Copied" : session ? "Share" : "Sign in to share"}
                 </Text>
               </Pressable>
             </View>

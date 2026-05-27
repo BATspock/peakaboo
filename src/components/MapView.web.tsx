@@ -7,6 +7,7 @@ import {
   Pin,
   useMap,
 } from "@vis.gl/react-google-maps";
+import PeakPin from "./PeakPin";
 
 export type MapMarker = {
   id: string;
@@ -83,28 +84,42 @@ export default function MapView({
           }}
         >
           <CameraController target={cameraTarget} />
-          {markers.map((m) => (
-            <AdvancedMarker
-              key={m.id}
-              position={{ lat: m.latitude, lng: m.longitude }}
-              title={m.title}
-              onClick={() => onMarkerPress?.(m.id)}
-            >
-              <Pin
-                background={
-                  m.tint === "favorite"
-                    ? "#F4A45A"
-                    : m.tint === "secondary"
-                      ? "#4A8BBF"
-                      : m.tint === "draft"
-                        ? "#4DA070"
-                        : "#1B3A2F"
-                }
-                borderColor="#1B3A2F"
-                glyphColor="#FFFFFF"
-              />
-            </AdvancedMarker>
-          ))}
+          {markers.map((m) => {
+            if (m.tint === "primary") {
+              return (
+                <AdvancedMarker
+                  key={m.id}
+                  position={{ lat: m.latitude, lng: m.longitude }}
+                  title={m.title}
+                  onClick={() => onMarkerPress?.(m.id)}
+                >
+                  <PeakPin label={m.title} />
+                </AdvancedMarker>
+              );
+            }
+            return (
+              <AdvancedMarker
+                key={m.id}
+                position={{ lat: m.latitude, lng: m.longitude }}
+                title={m.title}
+                onClick={() => onMarkerPress?.(m.id)}
+              >
+                <Pin
+                  background={
+                    m.tint === "favorite"
+                      ? "#F4A45A"
+                      : m.tint === "secondary"
+                        ? "#4A8BBF"
+                        : m.tint === "draft"
+                          ? "#4DA070"
+                          : "#1B3A2F"
+                  }
+                  borderColor="#1B3A2F"
+                  glyphColor="#FFFFFF"
+                />
+              </AdvancedMarker>
+            );
+          })}
         </Map>
       </APIProvider>
     </View>

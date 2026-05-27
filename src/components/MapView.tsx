@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import RNMaps, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
+import PeakPin from "./PeakPin";
 
 export type MapMarker = {
   id: string;
@@ -73,24 +74,43 @@ export default function MapView({
           })
         }
       >
-        {markers.map((m) => (
-          <Marker
-            key={m.id}
-            coordinate={{ latitude: m.latitude, longitude: m.longitude }}
-            title={m.title}
-            description={m.description}
-            pinColor={
-              m.tint === "favorite"
-                ? "#F4A45A"
-                : m.tint === "secondary"
-                  ? "#4A8BBF"
-                  : m.tint === "draft"
-                    ? "#4DA070"
-                    : "#1B3A2F"
-            }
-            onPress={() => onMarkerPress?.(m.id)}
-          />
-        ))}
+        {markers.map((m) => {
+          if (m.tint === "primary") {
+            // Custom peak marker. tracksViewChanges=false so the
+            // PeakPin doesn't re-rasterize on every render (perf + flicker).
+            return (
+              <Marker
+                key={m.id}
+                coordinate={{ latitude: m.latitude, longitude: m.longitude }}
+                title={m.title}
+                description={m.description}
+                onPress={() => onMarkerPress?.(m.id)}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={false}
+              >
+                <PeakPin label={m.title} />
+              </Marker>
+            );
+          }
+          return (
+            <Marker
+              key={m.id}
+              coordinate={{ latitude: m.latitude, longitude: m.longitude }}
+              title={m.title}
+              description={m.description}
+              pinColor={
+                m.tint === "favorite"
+                  ? "#F4A45A"
+                  : m.tint === "secondary"
+                    ? "#4A8BBF"
+                    : m.tint === "draft"
+                      ? "#4DA070"
+                      : "#1B3A2F"
+              }
+              onPress={() => onMarkerPress?.(m.id)}
+            />
+          );
+        })}
       </RNMaps>
     </View>
   );
