@@ -18,6 +18,7 @@ import {
 } from "../lib/time";
 import { useAuth } from "../auth/AuthContext";
 import { colors, radii } from "../theme";
+import ReportSheet from "./ReportSheet";
 
 function confirmAsync(message: string): boolean | Promise<boolean> {
   if (Platform.OS === "web") {
@@ -56,8 +57,19 @@ export default function SightingsFeed({
   refreshKey,
   onOpenLightbox,
 }: Props) {
-  const { session } = useAuth();
+  const { session, openAuthSheet } = useAuth();
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [reportingSightingId, setReportingSightingId] = useState<string | null>(
+    null,
+  );
+
+  function handleReport(row: Row) {
+    if (!session) {
+      openAuthSheet();
+      return;
+    }
+    setReportingSightingId(row.id);
+  }
 
   async function handleDelete(row: Row) {
     if (!session || row.user_id !== session.user.id) return;
@@ -137,6 +149,10 @@ export default function SightingsFeed({
 
   return (
     <View style={{ gap: 12 }}>
+      <ReportSheet
+        sightingId={reportingSightingId}
+        onClose={() => setReportingSightingId(null)}
+      />
       <Text style={styles.feedTitle}>Recent sightings</Text>
       {rows.map((r) => {
         const isToday = r.observed_on === today;
@@ -166,7 +182,7 @@ export default function SightingsFeed({
                   <Pressable
                     onPress={() => handleDelete(r)}
                     hitSlop={6}
-                    style={styles.deleteBtn}
+                    style={styles.iconBtn}
                   >
                     <Ionicons
                       name="trash-outline"
@@ -174,7 +190,19 @@ export default function SightingsFeed({
                       color={colors.clay}
                     />
                   </Pressable>
-                ) : null}
+                ) : (
+                  <Pressable
+                    onPress={() => handleReport(r)}
+                    hitSlop={6}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons
+                      name="flag-outline"
+                      size={14}
+                      color={colors.textTertiary}
+                    />
+                  </Pressable>
+                )}
               </View>
               <View style={styles.rowMetaRow}>
                 <Badge
@@ -315,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   photoMoreText: { color: colors.textOn, fontWeight: "700", fontSize: 13 },
-  deleteBtn: {
+  iconBtn: {
     width: 24,
     height: 24,
     alignItems: "center",
