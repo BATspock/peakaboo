@@ -13,7 +13,6 @@ import {
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
 import type { SightingCondition } from "../data/types";
-import { viewpointDateKey } from "../lib/time";
 import { pickAndUploadImages, type UploadedImage } from "./uploadImages";
 import { colors, radii } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -55,114 +54,46 @@ export default function SightingForm({
 }: Props) {
   const { session, openAuthSheet } = useAuth();
   const [form, setForm] = useState<FormState>(EMPTY);
-  const [hydrating, setHydrating] = useState<boolean>(!!session);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [existingId, setExistingId] = useState<string | null>(null);
+  // Each Save creates a new sighting row. We track the most-recent id so
+  // photo uploads (which need a parent sighting_id) can target it.
+  const [draftSightingId, setDraftSightingId] = useState<string | null>(null);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  // Hydrate today's existing sighting (if any) so editing is in-place.
+  // Reset everything when the viewpoint changes — fresh form on open.
   useEffect(() => {
-    if (!session) {
-      setHydrating(false);
-      setForm(EMPTY);
-      setExistingId(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setHydrating(true);
-      const today = viewpointDateKey();
-      const { data, error } = await supabase
-        .from("sightings")
-        .select("id, visible, visibility, conditions, notes")
-        .eq("user_id", session.user.id)
-        .eq("viewpoint_id", viewpointId)
-        .eq("observed_on", today)
-        .maybeSingle();
-
-      if (cancelled) return;
-      if (error) {
-        // eslint-disable-next-line no-console
-        console.warn("[sighting] hydrate failed", error.message);
-        setHydrating(false);
-        return;
-      }
-      if (data) {
-        setExistingId(data.id);
-        setForm({
-          visible: data.visible,
-          visibility: data.visibility ?? 5,
-          conditions: data.conditions,
-          notes: data.notes ?? "",
-        });
-
-        // Load already-uploaded images for today's sighting.
-        const { data: imgs } = await supabase
-          .from("sighting_images")
-          .select("id, storage_path, width, height")
-          .eq("sighting_id", data.id);
-        if (cancelled) return;
-        setImages(
-          (imgs ?? []).map((r) => ({
-            id: r.id,
-            storage_path: r.storage_path,
-            width: r.width,
-            height: r.height,
-            publicUrl: supabase.storage
-              .from("sightings")
-              .getPublicUrl(r.storage_path).data.publicUrl,
-          })),
-        );
-      } else {
-        setExistingId(null);
-        setForm(EMPTY);
-        setImages([]);
-      }
-      setHydrating(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [session, viewpointId]);
+    setForm(EMPTY);
+    setDraftSightingId(null);
+    setImages([]);
+    setSavedAt(null);
+  }, [viewpointId]);
 
   if (!session) {
     return (
       <View style={styles.signedOut}>
         <Text style={styles.signedOutText}>
-          Sign in to log whether you can see {subjectName} today.
+          Sign in to log whether you can see {subjectName}.
         </Text>
-        <Pressable
-          style={styles.primaryBtn}
-          onPress={openAuthSheet}
-        >
+        <Pressable style={styles.primaryBtn} onPress={openAuthSheet}>
           <Text style={styles.primaryBtnText}>Sign in to log a sighting</Text>
         </Pressable>
       </View>
     );
   }
 
-  if (hydrating) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  async function handleSave() {
-    if (!session) return;
+  async function ensureDraftSighting(): Promise<string | null> {
+    if (!session) return null;
+    if (draftSightingId) return draftSightingId;
     if (form.visible === null) {
       const msg = "Tell us if you can see it — yes or no.";
       Platform.OS === "web"
         ? // eslint-disable-next-line no-alert
           window.alert(msg)
         : Alert.alert("Almost there", msg);
-      return;
+      return null;
     }
-
-    setSaving(true);
     const payload = {
       viewpoint_id: viewpointId,
       user_id: session.user.id,
@@ -172,77 +103,43 @@ export default function SightingForm({
       notes: form.notes.trim() || null,
       observed_at: new Date().toISOString(),
     };
-
-    const op = existingId
-      ? supabase
-          .from("sightings")
-          .update(payload)
-          .eq("id", existingId)
-          .select("id")
-          .single()
-      : supabase.from("sightings").insert(payload).select("id").single();
-
-    const { data, error } = await op;
-    setSaving(false);
-
-    if (error) {
+    const { data, error } = await supabase
+      .from("sightings")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error || !data) {
       // eslint-disable-next-line no-console
       console.warn("[sighting] save failed", error);
-      const msg = error.message;
+      const msg = error?.message ?? "Could not create sighting.";
       Platform.OS === "web"
         ? // eslint-disable-next-line no-alert
           window.alert(`Save failed: ${msg}`)
         : Alert.alert("Save failed", msg);
-      return;
+      return null;
     }
-    if (data?.id && !existingId) setExistingId(data.id);
+    setDraftSightingId(data.id);
+    return data.id;
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    const sightingId = await ensureDraftSighting();
+    setSaving(false);
+    if (!sightingId) return;
     setSavedAt(Date.now());
     onSaved();
+    // Reset for the next sighting — same viewpoint, fresh state.
+    setForm(EMPTY);
+    setDraftSightingId(null);
+    setImages([]);
   }
 
   async function handleAddPhotos() {
     if (!session) return;
+    const sightingId = await ensureDraftSighting();
+    if (!sightingId) return;
 
-    let sightingId = existingId;
-    if (!sightingId) {
-      // Need a parent sighting first — save with current form state, then upload.
-      if (form.visible === null) {
-        const msg =
-          "Tell us yes or no first — then we'll attach photos to the sighting.";
-        Platform.OS === "web"
-          ? // eslint-disable-next-line no-alert
-            window.alert(msg)
-          : Alert.alert("Almost there", msg);
-        return;
-      }
-      const payload = {
-        viewpoint_id: viewpointId,
-        user_id: session.user.id,
-        visible: form.visible,
-        visibility: form.visibility,
-        conditions: form.conditions,
-        notes: form.notes.trim() || null,
-        observed_at: new Date().toISOString(),
-      };
-      const { data, error } = await supabase
-        .from("sightings")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (error || !data) {
-        const msg = error?.message ?? "Could not create sighting.";
-        Platform.OS === "web"
-          ? // eslint-disable-next-line no-alert
-            window.alert(`Save failed: ${msg}`)
-          : Alert.alert("Save failed", msg);
-        return;
-      }
-      sightingId = data.id;
-      setExistingId(sightingId);
-      setSavedAt(Date.now());
-    }
-
-    if (!sightingId) return; // unreachable; satisfies the type checker
     setUploading(true);
     try {
       const newOnes = await pickAndUploadImages({
@@ -408,11 +305,7 @@ export default function SightingForm({
           ]}
         >
           <Text style={styles.primaryBtnText}>
-            {saving
-              ? "Saving…"
-              : existingId
-                ? "Update sighting"
-                : "Save sighting"}
+            {saving ? "Saving…" : "Save sighting"}
           </Text>
         </Pressable>
         {savedAt && Date.now() - savedAt < 4000 ? (

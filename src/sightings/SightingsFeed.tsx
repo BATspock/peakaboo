@@ -1,19 +1,36 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import {
   formatViewpointDay,
   formatViewpointTime,
   viewpointDateKey,
 } from "../lib/time";
+import { useAuth } from "../auth/AuthContext";
 import { colors, radii } from "../theme";
+
+function confirmAsync(message: string): boolean | Promise<boolean> {
+  if (Platform.OS === "web") {
+    // eslint-disable-next-line no-alert
+    return typeof window !== "undefined" ? window.confirm(message) : false;
+  }
+  return new Promise<boolean>((resolve) => {
+    Alert.alert("Are you sure?", message, [
+      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+      { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+    ]);
+  });
+}
 
 type Row = {
   id: string;
@@ -39,7 +56,36 @@ export default function SightingsFeed({
   refreshKey,
   onOpenLightbox,
 }: Props) {
+  const { session } = useAuth();
   const [rows, setRows] = useState<Row[] | null>(null);
+
+  async function handleDelete(row: Row) {
+    if (!session || row.user_id !== session.user.id) return;
+    const ok = await confirmAsync("Delete this sighting? This can't be undone.");
+    if (!ok) return;
+
+    // Best-effort: delete storage objects (RLS allows because we own the
+    // parent sighting). Then delete the sighting row — sighting_images rows
+    // cascade-delete with the parent.
+    if (row.sighting_images?.length) {
+      const paths = row.sighting_images.map((i) => i.storage_path);
+      await supabase.storage.from("sightings").remove(paths);
+    }
+    const { error } = await supabase
+      .from("sightings")
+      .delete()
+      .eq("id", row.id);
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("[feed] delete failed", error.message);
+      Platform.OS === "web"
+        ? // eslint-disable-next-line no-alert
+          window.alert(`Delete failed: ${error.message}`)
+        : Alert.alert("Delete failed", error.message);
+      return;
+    }
+    setRows((prev) => prev?.filter((r) => r.id !== row.id) ?? null);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -113,8 +159,22 @@ export default function SightingsFeed({
                   {name}
                 </Text>
                 <Text style={styles.rowTime}>
-                  {formatViewpointDay(r.observed_at)} · {formatViewpointTime(r.observed_at)}
+                  {formatViewpointDay(r.observed_at)} ·{" "}
+                  {formatViewpointTime(r.observed_at)}
                 </Text>
+                {session?.user.id === r.user_id ? (
+                  <Pressable
+                    onPress={() => handleDelete(r)}
+                    hitSlop={6}
+                    style={styles.deleteBtn}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={14}
+                      color={colors.clay}
+                    />
+                  </Pressable>
+                ) : null}
               </View>
               <View style={styles.rowMetaRow}>
                 <Badge
@@ -255,4 +315,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   photoMoreText: { color: colors.textOn, fontWeight: "700", fontSize: 13 },
+  deleteBtn: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
+  },
 });

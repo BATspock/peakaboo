@@ -30,6 +30,7 @@ export async function pickAndUploadImages(args: {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     allowsMultipleSelection: true,
+    selectionLimit: 5,
     quality: 1,
   });
   if (result.canceled || result.assets.length === 0) return [];
