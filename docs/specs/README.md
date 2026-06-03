@@ -18,9 +18,14 @@ it. Cross-reference `docs/backlog.md` for the broader feature pipeline.
 
 | # | Title | Effort | Why now |
 |---|---|---|---|
-| 01 | [Map markers show visibility status](01-map-visibility-status.md) | ~2h | Highest UX impact per hour. Daily-use loop |
-| 02 | [OG link previews for shared viewpoints](02-og-link-previews.md) | ~3h | Required before more public sharing |
 | 03 | [Places search + subject categories](03-places-search-and-categories.md) | ~5h | Strategic differentiation from Is The Mountain Out |
+
+## Deferred
+
+| # | Title | Why deferred |
+|---|---|---|
+| 01 | [Map markers show visibility status](01-map-visibility-status.md) | Bumped behind 03 (strategic priority); revisit after Places ships |
+| 02 | [OG link previews for shared viewpoints](02-og-link-previews.md) | Bumped behind 03; revisit before broader public sharing |
 
 ## Workflow when picking up a spec
 
