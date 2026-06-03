@@ -6,6 +6,7 @@ import SightingForm from "./SightingForm";
 import SightingsFeed from "./SightingsFeed";
 import ViewpointRating from "../viewpoints/ViewpointRating";
 import ImageLightbox from "../components/ImageLightbox";
+import WeatherStrip from "../components/WeatherStrip";
 import { useAuth } from "../auth/AuthContext";
 import { useFavorites } from "../data/useFavorites";
 import { openInMaps } from "../lib/maps";
@@ -116,6 +117,11 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
                 </Text>
               </Pressable>
             </View>
+
+            <WeatherStrip
+              latitude={viewpoint.latitude}
+              longitude={viewpoint.longitude}
+            />
 
             <SightingForm
               viewpointId={viewpoint.id}
