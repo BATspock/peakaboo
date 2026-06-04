@@ -1,7 +1,5 @@
 import React from "react";
 import {
-  Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,21 +22,10 @@ export default function SubjectPinRow({
   onPickSubject,
   onAddPress,
 }: Props) {
-  const { session, openAuthSheet } = useAuth();
+  const { session } = useAuth();
   const { pins, canPin, unpin } = useSubjectPins();
 
   if (pins.length === 0) return null;
-
-  function handleLongPress(subjectId: string, name: string) {
-    if (!session) {
-      // Signed-out users see read-only defaults. Long-press prompts sign-in.
-      openAuthSheet();
-      return;
-    }
-    confirmAsync(`Unpin "${name}"?`).then((ok) => {
-      if (ok) unpin(subjectId);
-    });
-  }
 
   return (
     <ScrollView
@@ -49,20 +36,35 @@ export default function SubjectPinRow({
       {pins.map((s) => {
         const active = activeSubjectId === s.id;
         return (
-          <Pressable
+          <View
             key={s.id}
-            onPress={() => onPickSubject(s.id)}
-            onLongPress={() => handleLongPress(s.id, s.name)}
-            delayLongPress={400}
             style={[styles.pill, active && styles.pillActive]}
           >
-            <Text
-              style={[styles.pillText, active && styles.pillTextActive]}
-              numberOfLines={1}
+            <Pressable
+              style={styles.pillBody}
+              onPress={() => onPickSubject(s.id)}
             >
-              {s.name}
-            </Text>
-          </Pressable>
+              <Text
+                style={[styles.pillText, active && styles.pillTextActive]}
+                numberOfLines={1}
+              >
+                {s.name}
+              </Text>
+            </Pressable>
+            {session ? (
+              <Pressable
+                hitSlop={6}
+                onPress={() => unpin(s.id)}
+                style={styles.removeBtn}
+              >
+                <Ionicons
+                  name="close"
+                  size={12}
+                  color={active ? colors.textOn : colors.textTertiary}
+                />
+              </Pressable>
+            ) : null}
+          </View>
         );
       })}
 
@@ -76,32 +78,30 @@ export default function SubjectPinRow({
   );
 }
 
-function confirmAsync(message: string): Promise<boolean> {
-  if (Platform.OS === "web") {
-    return Promise.resolve(
-      typeof window !== "undefined" ? window.confirm(message) : false,
-    );
-  }
-  return new Promise<boolean>((resolve) => {
-    Alert.alert("Unpin", message, [
-      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-      { text: "Unpin", style: "destructive", onPress: () => resolve(true) },
-    ]);
-  });
-}
-
 const styles = StyleSheet.create({
-  row: { gap: 8, paddingTop: 10 },
+  row: { gap: 8, paddingTop: 10, alignItems: "center" },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 14,
+    paddingRight: 6,
+    paddingVertical: 6,
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceSoft,
     marginRight: 8,
   },
   pillActive: { backgroundColor: colors.forest },
+  pillBody: { paddingVertical: 2 },
   pillText: { color: colors.textSecondary, fontWeight: "600", fontSize: 13 },
   pillTextActive: { color: colors.textOn },
+  removeBtn: {
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
+    borderRadius: radii.pill,
+  },
   addPill: {
     flexDirection: "row",
     alignItems: "center",

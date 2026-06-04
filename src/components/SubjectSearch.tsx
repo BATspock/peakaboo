@@ -286,7 +286,10 @@ function prettyKind(k: string): string {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: "relative" },
+  // Lift the wrap above siblings (e.g., SubjectPinRow rendered below us
+  // in the header) so the absolutely-positioned dropdown floats over
+  // them instead of being covered.
+  wrap: { position: "relative", zIndex: 100 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
