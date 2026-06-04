@@ -1,4 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +18,7 @@ import { useSubjectSearch, type PlaceSuggestion } from "../data/useSubjectSearch
 import type { Subject } from "../data/types";
 import { useAuth } from "../auth/AuthContext";
 import { useSubjectPins } from "../data/useSubjectPins";
+import { recordRecentSubject } from "../data/recentSubjects";
 
 type Props = {
   subjects: Subject[];                            // featured (initial 3 peaks)
@@ -20,32 +26,37 @@ type Props = {
   onSelectSubject: (id: string) => void;          // existing subject picked
   onSelectPlace: (place: PlaceSuggestion) => void; // new place to add
   onReportSubject: (subject: Subject) => void;    // flag a subject
-  // Bumped externally (via SubjectPinRow's [+] button) to programmatically
-  // focus the search input. Each increment refocuses.
-  focusNonce?: number;
 };
 
-export default function SubjectSearch({
-  subjects,
-  activeSubjectId,
-  onSelectSubject,
-  onSelectPlace,
-  onReportSubject,
-  focusNonce,
-}: Props) {
+export type SubjectSearchHandle = {
+  focus: () => void;
+};
+
+// forwardRef so the parent ([+] button) can call .focus() imperatively
+// during the click handler. We tried a state-based focusNonce approach,
+// but on web the click → blur → effect ordering races with itself; the
+// nonce strategy intermittently dropped focus. Imperative handle = no race.
+const SubjectSearch = forwardRef<SubjectSearchHandle, Props>(function SubjectSearch(
+  {
+    subjects,
+    activeSubjectId,
+    onSelectSubject,
+    onSelectPlace,
+    onReportSubject,
+  },
+  ref,
+) {
   const { session } = useAuth();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const { existing, suggestions, loading, error } = useSubjectSearch(query);
 
-  // External request to focus the input — used by SubjectPinRow's [+] button
-  // so adding a new pin is one tap to focus the search.
-  useEffect(() => {
-    if (focusNonce !== undefined && focusNonce > 0) {
+  useImperativeHandle(ref, () => ({
+    focus: () => {
       inputRef.current?.focus();
-    }
-  }, [focusNonce]);
+    },
+  }));
 
   // Keep the dropdown open while focused OR while there's a query, so a
   // mid-result blur (browser quirks, scroll, etc.) doesn't yank the
@@ -58,6 +69,7 @@ export default function SubjectSearch({
     setQuery("");
     setFocused(false);
     onSelectSubject(s.id);
+    recordRecentSubject(s.id);
   }
 
   function pickPlace(p: PlaceSuggestion) {
@@ -157,7 +169,9 @@ export default function SubjectSearch({
       ) : null}
     </View>
   );
-}
+});
+
+export default SubjectSearch;
 
 function FeaturedSection({
   subjects,

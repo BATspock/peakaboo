@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import BottomSheet from "../components/BottomSheet";
+import SubjectPicker from "../components/SubjectPicker";
 import { useAuth } from "../auth/AuthContext";
 import { supabase } from "../lib/supabase";
 import type { Subject } from "../data/types";
@@ -350,32 +351,24 @@ export default function AddViewpointSheet({
         <View style={{ gap: 8 }}>
           <Text style={styles.label}>View of</Text>
           {subjectsAvailable ? (
-            <View style={styles.subjectRow}>
-              {subjects.map((s) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => setSubjectId(s.id)}
-                  style={[
-                    styles.chip,
-                    subjectId === s.id && styles.chipActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      subjectId === s.id && styles.chipTextActive,
-                    ]}
-                  >
-                    {s.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <SubjectPicker
+              subjects={subjects}
+              selectedId={subjectId}
+              onSelect={setSubjectId}
+            />
           ) : (
             <Text style={styles.helperText}>
               No subjects loaded — try again in a moment.
             </Text>
           )}
+          {subjectId ? (
+            <Text style={styles.subjectConfirm}>
+              Selected:{" "}
+              <Text style={styles.subjectConfirmName}>
+                {subjects.find((s) => s.id === subjectId)?.name ?? "—"}
+              </Text>
+            </Text>
+          ) : null}
         </View>
 
         {nearbyMatches.length > 0 && !overrideDedup ? (
@@ -540,6 +533,12 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: colors.text, fontWeight: "700", fontSize: 14 },
 
   helperText: { fontSize: 12, color: colors.textSecondary, lineHeight: 16 },
+  subjectConfirm: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  subjectConfirmName: { color: colors.text, fontWeight: "700" },
 
   dedupPanel: {
     backgroundColor: colors.peakSoft,

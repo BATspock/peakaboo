@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaProvider,
@@ -20,7 +20,9 @@ import FavoritesSheet from "./src/viewpoints/FavoritesSheet";
 import FavoritesButton from "./src/viewpoints/FavoritesButton";
 import HistorySheet from "./src/sightings/HistorySheet";
 import HistoryButton from "./src/sightings/HistoryButton";
-import SubjectSearch from "./src/components/SubjectSearch";
+import SubjectSearch, {
+  type SubjectSearchHandle,
+} from "./src/components/SubjectSearch";
 import SubjectPinRow from "./src/components/SubjectPinRow";
 import ReportSheet from "./src/components/ReportSheet";
 import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
@@ -31,6 +33,7 @@ import AuthSheet from "./src/auth/AuthSheet";
 import { subjectCameraDelta } from "./src/lib/cameraDelta";
 import type { PlaceSuggestion } from "./src/data/useSubjectSearch";
 import type { ReportTargetType, Subject } from "./src/data/types";
+import { recordRecentSubject } from "./src/data/recentSubjects";
 
 function getPath(): string {
   if (typeof window === "undefined") return "/";
@@ -100,7 +103,7 @@ function Home() {
     type: ReportTargetType;
     id: string;
   } | null>(null);
-  const [searchFocusNonce, setSearchFocusNonce] = useState(0);
+  const searchRef = useRef<SubjectSearchHandle>(null);
   const { session, openAuthSheet } = useAuth();
   const [pinDropCoords, setPinDropCoords] = useState<{
     latitude: number;
@@ -201,12 +204,14 @@ function Home() {
     setAddingSubjectFromPlace(null);
     setActiveSubjectId(newSubject.id);
     setCameraNonce((n) => n + 1);
+    recordRecentSubject(newSubject.id);
   }
 
   function handleOpenExistingSubject(id: string) {
     setAddingSubjectFromPlace(null);
     setActiveSubjectId(id);
     setCameraNonce((n) => n + 1);
+    recordRecentSubject(id);
   }
 
   const markers: MapMarker[] = useMemo(() => {
@@ -263,17 +268,17 @@ function Home() {
           <SignInButton />
         </View>
         <SubjectSearch
+          ref={searchRef}
           subjects={subjects.slice(0, 6)}
           activeSubjectId={activeSubjectId}
           onSelectSubject={handleSelectSubject}
           onSelectPlace={handleSelectPlace}
           onReportSubject={handleReportSubject}
-          focusNonce={searchFocusNonce}
         />
         <SubjectPinRow
           activeSubjectId={activeSubjectId}
           onPickSubject={handleSelectSubject}
-          onAddPress={() => setSearchFocusNonce((n) => n + 1)}
+          onAddPress={() => searchRef.current?.focus()}
         />
       </View>
 
