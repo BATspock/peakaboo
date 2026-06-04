@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -12,6 +12,7 @@ import { colors, radii } from "../theme";
 import { useSubjectSearch, type PlaceSuggestion } from "../data/useSubjectSearch";
 import type { Subject } from "../data/types";
 import { useAuth } from "../auth/AuthContext";
+import { useSubjectPins } from "../data/useSubjectPins";
 
 type Props = {
   subjects: Subject[];                            // featured (initial 3 peaks)
@@ -19,6 +20,9 @@ type Props = {
   onSelectSubject: (id: string) => void;          // existing subject picked
   onSelectPlace: (place: PlaceSuggestion) => void; // new place to add
   onReportSubject: (subject: Subject) => void;    // flag a subject
+  // Bumped externally (via SubjectPinRow's [+] button) to programmatically
+  // focus the search input. Each increment refocuses.
+  focusNonce?: number;
 };
 
 export default function SubjectSearch({
@@ -27,11 +31,21 @@ export default function SubjectSearch({
   onSelectSubject,
   onSelectPlace,
   onReportSubject,
+  focusNonce,
 }: Props) {
   const { session } = useAuth();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
   const { existing, suggestions, loading, error } = useSubjectSearch(query);
+
+  // External request to focus the input — used by SubjectPinRow's [+] button
+  // so adding a new pin is one tap to focus the search.
+  useEffect(() => {
+    if (focusNonce !== undefined && focusNonce > 0) {
+      inputRef.current?.focus();
+    }
+  }, [focusNonce]);
 
   // Keep the dropdown open while focused OR while there's a query, so a
   // mid-result blur (browser quirks, scroll, etc.) doesn't yank the
@@ -62,6 +76,7 @@ export default function SubjectSearch({
           style={{ marginRight: 8 }}
         />
         <TextInput
+          ref={inputRef}
           style={styles.input}
           placeholder="Search a peak, waterfall, skyline…"
           placeholderTextColor={colors.textTertiary}
@@ -187,8 +202,11 @@ function ExistingRow({
   session: { user: { id: string } } | null;
   onReport: () => void;
 }) {
+  const { pinnedIds, canPin, pin } = useSubjectPins();
   const canReport =
     session && subject.createdBy && subject.createdBy !== session.user.id;
+  const isPinned = pinnedIds.has(subject.id);
+  const showPinAction = !!session && !isPinned && canPin;
   return (
     <View style={styles.row}>
       <Pressable
@@ -207,9 +225,23 @@ function ExistingRow({
           <Text style={styles.rowSubtitle} numberOfLines={1}>
             {prettyKind(subject.kind)}
             {active ? " · viewing" : ""}
+            {isPinned ? " · pinned" : ""}
           </Text>
         </View>
       </Pressable>
+      {showPinAction ? (
+        <Pressable
+          hitSlop={6}
+          onPress={() => pin(subject.id)}
+          style={styles.iconBtn}
+        >
+          <Ionicons
+            name="bookmark-outline"
+            size={14}
+            color={colors.forest}
+          />
+        </Pressable>
+      ) : null}
       {canReport ? (
         <Pressable hitSlop={6} onPress={onReport} style={styles.iconBtn}>
           <Ionicons

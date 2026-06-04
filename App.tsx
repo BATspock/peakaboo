@@ -21,8 +21,10 @@ import FavoritesButton from "./src/viewpoints/FavoritesButton";
 import HistorySheet from "./src/sightings/HistorySheet";
 import HistoryButton from "./src/sightings/HistoryButton";
 import SubjectSearch from "./src/components/SubjectSearch";
+import SubjectPinRow from "./src/components/SubjectPinRow";
 import ReportSheet from "./src/components/ReportSheet";
 import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
+import { SubjectPinsProvider } from "./src/data/useSubjectPins";
 import PrivacyPolicy from "./src/screens/PrivacyPolicy";
 import ResetPasswordScreen from "./src/screens/ResetPassword";
 import AuthSheet from "./src/auth/AuthSheet";
@@ -67,12 +69,14 @@ export default function App() {
       ) : (
         <AuthProvider>
           <FavoritesProvider>
-            {path.startsWith("/reset-password") ? (
-              <ResetPasswordScreen />
-            ) : (
-              <Home />
-            )}
-            <AuthSheet />
+            <SubjectPinsProvider>
+              {path.startsWith("/reset-password") ? (
+                <ResetPasswordScreen />
+              ) : (
+                <Home />
+              )}
+              <AuthSheet />
+            </SubjectPinsProvider>
           </FavoritesProvider>
         </AuthProvider>
       )}
@@ -96,6 +100,7 @@ function Home() {
     type: ReportTargetType;
     id: string;
   } | null>(null);
+  const [searchFocusNonce, setSearchFocusNonce] = useState(0);
   const { session, openAuthSheet } = useAuth();
   const [pinDropCoords, setPinDropCoords] = useState<{
     latitude: number;
@@ -263,6 +268,12 @@ function Home() {
           onSelectSubject={handleSelectSubject}
           onSelectPlace={handleSelectPlace}
           onReportSubject={handleReportSubject}
+          focusNonce={searchFocusNonce}
+        />
+        <SubjectPinRow
+          activeSubjectId={activeSubjectId}
+          onPickSubject={handleSelectSubject}
+          onAddPress={() => setSearchFocusNonce((n) => n + 1)}
         />
       </View>
 
