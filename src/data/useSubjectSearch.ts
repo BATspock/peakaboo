@@ -26,13 +26,19 @@ const EMPTY: State = {
 
 // PNW center for location bias on the autocomplete query — biases results
 // toward Seattle area without restricting to it. Users can search anywhere
-// but PNW results rank higher.
+// but PNW results rank higher. Google caps the radius at 50,000 meters.
 const PNW_BIAS = {
   center: { latitude: 47.6, longitude: -122.0 },
-  radius: 500_000, // 500km — covers Cascadia from Vancouver to Bend
+  radius: 50_000, // 50km — Google's max; covers greater Seattle
 };
 
-const DEBOUNCE_MS = 300;
+// 600ms is a deliberate middle ground:
+// - Keeps the UI feeling responsive (1s starts feeling laggy)
+// - Coalesces aggressively so a normal-speed user fires ~1 call per word
+// Combined with MIN_QUERY_LEN this means typing "Snoqualmie Falls" is
+// usually 1-2 Places API calls total.
+const DEBOUNCE_MS = 600;
+const MIN_QUERY_LEN = 3;
 const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 // Tiny in-memory cache so repeat-typing doesn't refetch.
@@ -46,6 +52,18 @@ export function useSubjectSearch(query: string): State {
     const trimmed = query.trim();
     if (trimmed.length === 0) {
       setState(EMPTY);
+      return;
+    }
+
+    // Don't bother the API for 1-2 character queries — too noisy, low signal,
+    // and a real safety net against accidental high-frequency calls.
+    if (trimmed.length < MIN_QUERY_LEN) {
+      setState({
+        existing: [],
+        suggestions: [],
+        loading: false,
+        error: null,
+      });
       return;
     }
 
