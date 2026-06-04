@@ -375,6 +375,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+    // Lift the header above the map so the search dropdown (which
+    // overflows the header bottom edge with position: absolute) renders
+    // on top of the map's stacking context.
+    zIndex: 100,
+    // Web-only equivalent of zIndex for nested stacking contexts.
+    // react-native-web translates this to CSS.
+    elevation: 10,
   },
   titleRow: {
     flexDirection: "row",

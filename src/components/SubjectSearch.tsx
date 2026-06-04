@@ -33,8 +33,12 @@ export default function SubjectSearch({
   const [focused, setFocused] = useState(false);
   const { existing, suggestions, loading, error } = useSubjectSearch(query);
 
-  const showDropdown = focused;
+  // Keep the dropdown open while focused OR while there's a query, so a
+  // mid-result blur (browser quirks, scroll, etc.) doesn't yank the
+  // results out from under the user. They close it explicitly via the
+  // close button or by picking a result.
   const hasQuery = query.trim().length > 0;
+  const showDropdown = focused || hasQuery;
 
   function pickExisting(s: Subject) {
     setQuery("");
@@ -64,10 +68,7 @@ export default function SubjectSearch({
           value={query}
           onChangeText={setQuery}
           onFocus={() => setFocused(true)}
-          onBlur={() => {
-            // Delay the close so a tap on a result lands before we collapse.
-            setTimeout(() => setFocused(false), 150);
-          }}
+          onBlur={() => setFocused(false)}
           autoCorrect={false}
           autoCapitalize="words"
         />
