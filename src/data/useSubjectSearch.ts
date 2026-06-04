@@ -24,13 +24,12 @@ const EMPTY: State = {
   error: null,
 };
 
-// PNW center for location bias on the autocomplete query — biases results
-// toward Seattle area without restricting to it. Users can search anywhere
-// but PNW results rank higher. Google caps the radius at 50,000 meters.
-const PNW_BIAS = {
-  center: { latitude: 47.6, longitude: -122.0 },
-  radius: 50_000, // 50km — Google's max; covers greater Seattle
-};
+// No locationBias — Google's autocomplete is already IP-geolocation-aware.
+// A user in Seattle searching "Mt" gets PNW peaks first; a user in India
+// gets Indian peaks first. Biasing to Seattle would be wrong for any
+// non-PNW user. If you ever want to bias to the user's actual location,
+// reach for browser geolocation; if you want to bias to the current map
+// view, pass the map's center delta in. Defaults are fine for v1.
 
 // 600ms is a deliberate middle ground:
 // - Keeps the UI feeling responsive (1s starts feeling laggy)
@@ -140,7 +139,6 @@ async function searchGooglePlaces(q: string): Promise<PlaceSuggestion[]> {
     },
     body: JSON.stringify({
       input: q,
-      locationBias: { circle: PNW_BIAS },
       includeQueryPredictions: false,
     }),
   });
