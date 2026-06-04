@@ -18,7 +18,7 @@ import {
 } from "../lib/time";
 import { useAuth } from "../auth/AuthContext";
 import { colors, radii } from "../theme";
-import ReportSheet from "./ReportSheet";
+import ReportSheet from "../components/ReportSheet";
 
 function confirmAsync(message: string): boolean | Promise<boolean> {
   if (Platform.OS === "web") {
@@ -150,7 +150,11 @@ export default function SightingsFeed({
   return (
     <View style={{ gap: 12 }}>
       <ReportSheet
-        sightingId={reportingSightingId}
+        target={
+          reportingSightingId
+            ? { type: "sighting", id: reportingSightingId }
+            : null
+        }
         onClose={() => setReportingSightingId(null)}
       />
       <Text style={styles.feedTitle}>Recent sightings</Text>

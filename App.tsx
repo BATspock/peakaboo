@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -11,18 +11,24 @@ import { colors, radii } from "./src/theme";
 import MapView, { MapMarker, CameraTarget } from "./src/components/MapView";
 import { REGION_DEFAULT } from "./src/data/seed";
 import { usePlaces } from "./src/data/usePlaces";
-import { AuthProvider } from "./src/auth/AuthContext";
+import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import SignInButton from "./src/auth/SignInButton";
 import ViewpointSheet from "./src/sightings/ViewpointSheet";
 import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
+import AddSubjectSheet from "./src/viewpoints/AddSubjectSheet";
 import FavoritesSheet from "./src/viewpoints/FavoritesSheet";
 import FavoritesButton from "./src/viewpoints/FavoritesButton";
 import HistorySheet from "./src/sightings/HistorySheet";
 import HistoryButton from "./src/sightings/HistoryButton";
+import SubjectSearch from "./src/components/SubjectSearch";
+import ReportSheet from "./src/components/ReportSheet";
 import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
 import PrivacyPolicy from "./src/screens/PrivacyPolicy";
 import ResetPasswordScreen from "./src/screens/ResetPassword";
 import AuthSheet from "./src/auth/AuthSheet";
+import { subjectCameraDelta } from "./src/lib/cameraDelta";
+import type { PlaceSuggestion } from "./src/data/useSubjectSearch";
+import type { ReportTargetType, Subject } from "./src/data/types";
 
 function getPath(): string {
   if (typeof window === "undefined") return "/";
@@ -84,6 +90,13 @@ function Home() {
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [pinDropMode, setPinDropMode] = useState(false);
+  const [addingSubjectFromPlace, setAddingSubjectFromPlace] =
+    useState<PlaceSuggestion | null>(null);
+  const [reportTarget, setReportTarget] = useState<{
+    type: ReportTargetType;
+    id: string;
+  } | null>(null);
+  const { session, openAuthSheet } = useAuth();
   const [pinDropCoords, setPinDropCoords] = useState<{
     latitude: number;
     longitude: number;
@@ -140,8 +153,10 @@ function Home() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // Camera target — bumps when the user picks a subject pill so the map
-  // animates to that subject. nonce ensures repeated taps still re-center.
+  // Camera target — bumps when the user picks a subject so the map
+  // animates to it. nonce ensures repeated picks still re-center.
+  // Delta is derived from the subject's category so a city skyline zooms
+  // in tighter than a mountain peak.
   const [cameraNonce, setCameraNonce] = useState(0);
   const cameraTarget: CameraTarget | null = useMemo(() => {
     if (activeSubjectId === null) return null;
@@ -150,10 +165,44 @@ function Home() {
     return {
       latitude: s.latitude,
       longitude: s.longitude,
-      delta: 1.4,
+      delta: subjectCameraDelta(s.kind),
       nonce: cameraNonce,
     };
   }, [activeSubjectId, subjects, cameraNonce]);
+
+  function handleSelectSubject(id: string) {
+    setActiveSubjectId(id);
+    setCameraNonce((n) => n + 1);
+  }
+
+  function handleSelectPlace(p: PlaceSuggestion) {
+    if (!session) {
+      openAuthSheet();
+      return;
+    }
+    setAddingSubjectFromPlace(p);
+  }
+
+  function handleReportSubject(s: Subject) {
+    if (!session) {
+      openAuthSheet();
+      return;
+    }
+    setReportTarget({ type: "subject", id: s.id });
+  }
+
+  function handleSubjectCreated(newSubject: Subject) {
+    refresh();
+    setAddingSubjectFromPlace(null);
+    setActiveSubjectId(newSubject.id);
+    setCameraNonce((n) => n + 1);
+  }
+
+  function handleOpenExistingSubject(id: string) {
+    setAddingSubjectFromPlace(null);
+    setActiveSubjectId(id);
+    setCameraNonce((n) => n + 1);
+  }
 
   const markers: MapMarker[] = useMemo(() => {
     const subjectMarkers: MapMarker[] = subjects
@@ -208,23 +257,13 @@ function Home() {
           <FavoritesButton onPress={() => setFavoritesOpen(true)} />
           <SignInButton />
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillRow}
-        >
-          {subjects.map((s) => (
-            <SubjectPill
-              key={s.id}
-              label={s.name}
-              active={activeSubjectId === s.id}
-              onPress={() => {
-                setActiveSubjectId(s.id);
-                setCameraNonce((n) => n + 1);
-              }}
-            />
-          ))}
-        </ScrollView>
+        <SubjectSearch
+          subjects={subjects.slice(0, 6)}
+          activeSubjectId={activeSubjectId}
+          onSelectSubject={handleSelectSubject}
+          onSelectPlace={handleSelectPlace}
+          onReportSubject={handleReportSubject}
+        />
       </View>
 
       <View style={styles.mapWrap}>
@@ -291,6 +330,23 @@ function Home() {
           refresh();
           setOpenViewpointId(id);
         }}
+        onOpenExistingViewpoint={(id) => {
+          setAddOpen(false);
+          setPinDropCoords(null);
+          setOpenViewpointId(id);
+        }}
+      />
+
+      <AddSubjectSheet
+        place={addingSubjectFromPlace}
+        onClose={() => setAddingSubjectFromPlace(null)}
+        onCreated={handleSubjectCreated}
+        onOpenExisting={handleOpenExistingSubject}
+      />
+
+      <ReportSheet
+        target={reportTarget}
+        onClose={() => setReportTarget(null)}
       />
 
       <FavoritesSheet
@@ -307,27 +363,6 @@ function Home() {
         onPickViewpoint={(id) => setOpenViewpointId(id)}
       />
     </SafeAreaView>
-  );
-}
-
-function SubjectPill({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.pill, active && styles.pillActive]}
-    >
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -360,17 +395,6 @@ const styles = StyleSheet.create({
   },
   titleHint: { fontSize: 12, color: colors.textTertiary, fontWeight: "500" },
   titleError: { fontSize: 12, color: colors.ember, fontWeight: "600" },
-  pillRow: { paddingTop: 4, gap: 8 },
-  pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceSoft,
-    marginRight: 8,
-  },
-  pillActive: { backgroundColor: colors.forest },
-  pillText: { color: colors.textSecondary, fontWeight: "600", fontSize: 13 },
-  pillTextActive: { color: colors.textOn },
   mapWrap: { flex: 1 },
   fab: {
     position: "absolute",

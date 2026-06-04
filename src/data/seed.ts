@@ -13,9 +13,9 @@ export const REGION_DEFAULT = {
 };
 
 export const SEED_SUBJECTS: Subject[] = [
-  { id: "mt-rainier", name: "Mt Rainier", kind: "mountain", latitude: 46.8523, longitude: -121.7603 },
-  { id: "mt-adams",   name: "Mt Adams",   kind: "mountain", latitude: 46.2024, longitude: -121.4909 },
-  { id: "mt-baker",   name: "Mt Baker",   kind: "mountain", latitude: 48.7768, longitude: -121.8145 },
+  { id: "mt-rainier", name: "Mt Rainier", kind: "mountain_peak", latitude: 46.8523, longitude: -121.7603 },
+  { id: "mt-adams",   name: "Mt Adams",   kind: "mountain_peak", latitude: 46.2024, longitude: -121.4909 },
+  { id: "mt-baker",   name: "Mt Baker",   kind: "mountain_peak", latitude: 48.7768, longitude: -121.8145 },
 ];
 
 export const SEED_VIEWPOINTS: Viewpoint[] = [

@@ -7,6 +7,8 @@ import SightingsFeed from "./SightingsFeed";
 import ViewpointRating from "../viewpoints/ViewpointRating";
 import ImageLightbox from "../components/ImageLightbox";
 import WeatherStrip from "../components/WeatherStrip";
+import ReportSheet from "../components/ReportSheet";
+import type { ReportTargetType } from "../data/types";
 import { useAuth } from "../auth/AuthContext";
 import { useFavorites } from "../data/useFavorites";
 import { openInMaps } from "../lib/maps";
@@ -31,6 +33,19 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
 
   const isFav = viewpoint ? has(viewpoint.id) : false;
   const [copied, setCopied] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{
+    type: ReportTargetType;
+    id: string;
+  } | null>(null);
+
+  function handleReport() {
+    if (!viewpoint) return;
+    if (!session) {
+      openAuthSheet();
+      return;
+    }
+    setReportTarget({ type: "viewpoint", id: viewpoint.id });
+  }
 
   async function handleShare() {
     if (!viewpoint || !subject) return;
@@ -135,9 +150,23 @@ export default function ViewpointSheet({ viewpoint, subject, onClose }: Props) {
               refreshKey={refreshKey}
               onOpenLightbox={(urls, index) => setLightbox({ urls, index })}
             />
+
+            <Pressable onPress={handleReport} style={styles.reportLink}>
+              <Ionicons
+                name="flag-outline"
+                size={12}
+                color={colors.textTertiary}
+              />
+              <Text style={styles.reportLinkText}>Report this viewpoint</Text>
+            </Pressable>
           </View>
         ) : null}
       </BottomSheet>
+
+      <ReportSheet
+        target={reportTarget}
+        onClose={() => setReportTarget(null)}
+      />
 
       <ImageLightbox
         urls={lightbox?.urls ?? []}
@@ -168,4 +197,12 @@ const styles = StyleSheet.create({
   },
   actionText: { fontSize: 13, fontWeight: "700", color: colors.text },
   actionTextActive: { color: colors.emberDark },
+  reportLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 6,
+  },
+  reportLinkText: { fontSize: 11, color: colors.textTertiary, fontWeight: "500" },
 });

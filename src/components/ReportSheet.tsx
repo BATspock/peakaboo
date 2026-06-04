@@ -7,10 +7,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import BottomSheet from "../components/BottomSheet";
+import BottomSheet from "./BottomSheet";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
 import { colors, radii } from "../theme";
+import type { ReportTargetType } from "../data/types";
 
 type Reason =
   | "spam"
@@ -30,11 +31,11 @@ const REASONS: { value: Reason; label: string }[] = [
 ];
 
 type Props = {
-  sightingId: string | null;
+  target: { type: ReportTargetType; id: string } | null;
   onClose: () => void;
 };
 
-export default function ReportSheet({ sightingId, onClose }: Props) {
+export default function ReportSheet({ target, onClose }: Props) {
   const { session } = useAuth();
   const [reason, setReason] = useState<Reason | null>(null);
   const [notes, setNotes] = useState("");
@@ -44,42 +45,56 @@ export default function ReportSheet({ sightingId, onClose }: Props) {
 
   // Reset on open.
   useEffect(() => {
-    if (sightingId) {
+    if (target) {
       setReason(null);
       setNotes("");
       setError(null);
       setDone(false);
       setSubmitting(false);
     }
-  }, [sightingId]);
+  }, [target]);
 
   async function handleSubmit() {
-    if (!session || !sightingId || !reason) return;
+    if (!session || !target || !reason) return;
     setSubmitting(true);
     setError(null);
     const { error: insertError } = await supabase.from("reports").insert({
-      sighting_id: sightingId,
+      target_type: target.type,
+      target_id: target.id,
+      // Keep sighting_id populated for the deprecated alias period if
+      // the target is a sighting — this lets old admin queries keep
+      // working. Drops in a follow-up migration.
+      sighting_id: target.type === "sighting" ? target.id : null,
       reporter_user_id: session.user.id,
       reason,
       notes: notes.trim() || null,
     });
     setSubmitting(false);
     if (insertError) {
-      // Unique constraint = user already reported this sighting.
-      const msg = insertError.code === "23505"
-        ? "You've already reported this sighting. Thanks — we'll review it."
-        : insertError.message;
+      const msg =
+        insertError.code === "23505"
+          ? `You've already reported this ${target.type}. Thanks — we'll review it.`
+          : insertError.message;
       setError(msg);
       return;
     }
     setDone(true);
   }
 
+  const targetLabel =
+    target?.type === "sighting"
+      ? "sighting"
+      : target?.type === "viewpoint"
+        ? "viewpoint"
+        : target?.type === "subject"
+          ? "place"
+          : "item";
+
   return (
     <BottomSheet
-      visible={!!sightingId}
+      visible={!!target}
       onClose={onClose}
-      title={done ? "Report submitted" : "Report sighting"}
+      title={done ? "Report submitted" : `Report ${targetLabel}`}
       subtitle={
         done
           ? "Thanks for flagging this. We'll review it shortly."
@@ -100,7 +115,9 @@ export default function ReportSheet({ sightingId, onClose }: Props) {
       ) : (
         <View style={{ gap: 16 }}>
           <View style={{ gap: 8 }}>
-            <Text style={styles.label}>What's wrong with this sighting?</Text>
+            <Text style={styles.label}>
+              What's wrong with this {targetLabel}?
+            </Text>
             <View style={styles.chipRow}>
               {REASONS.map((r) => (
                 <Pressable

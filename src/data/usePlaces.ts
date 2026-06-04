@@ -26,7 +26,11 @@ export function usePlaces(): State {
 
     (async () => {
       const [subjectsRes, viewpointsRes] = await Promise.all([
-        supabase.from("subjects").select("id, name, kind, latitude, longitude"),
+        supabase
+          .from("subjects")
+          .select(
+            "id, name, kind, latitude, longitude, description, created_by, place_id, created_at",
+          ),
         supabase
           .from("viewpoints")
           .select("id, subject_id, name, description, latitude, longitude"),
@@ -50,6 +54,10 @@ export function usePlaces(): State {
         kind: r.kind,
         latitude: r.latitude,
         longitude: r.longitude,
+        description: r.description,
+        createdBy: r.created_by,
+        placeId: r.place_id,
+        createdAt: r.created_at,
       }));
 
       const nextViewpoints: Viewpoint[] = (viewpointsRes.data ?? []).map(

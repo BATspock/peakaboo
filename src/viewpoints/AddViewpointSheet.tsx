@@ -28,6 +28,13 @@ type Props = {
   pinDropCoords: Coords; // set externally when the user taps the map in pin-drop mode
   onRequestPinDrop: () => void;
   onCreated: (newViewpointId: string) => void;
+  onOpenExistingViewpoint?: (viewpointId: string) => void;
+};
+
+type NearbyMatch = {
+  id: string;
+  name: string;
+  distance_m: number;
 };
 
 export default function AddViewpointSheet({
@@ -37,6 +44,7 @@ export default function AddViewpointSheet({
   pinDropCoords,
   onRequestPinDrop,
   onCreated,
+  onOpenExistingViewpoint,
 }: Props) {
   const { session, openAuthSheet } = useAuth();
   const [mode, setMode] = useState<Mode>("current");
@@ -48,6 +56,8 @@ export default function AddViewpointSheet({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState<"location" | "saving" | null>(null);
+  const [nearbyMatches, setNearbyMatches] = useState<NearbyMatch[]>([]);
+  const [overrideDedup, setOverrideDedup] = useState(false);
 
   // Reset on open/close so the form is fresh each time.
   useEffect(() => {
@@ -58,8 +68,46 @@ export default function AddViewpointSheet({
       setName("");
       setDescription("");
       setSubjectId(subjects[0]?.id ?? null);
+      setNearbyMatches([]);
+      setOverrideDedup(false);
     }
   }, [visible, subjects]);
+
+  // Dedup check — fire whenever subject + coords are both set, to surface
+  // possible duplicates before the user hits Save. Soft signal only; user
+  // can override.
+  useEffect(() => {
+    if (!coords || !subjectId) {
+      setNearbyMatches([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("find_nearby_viewpoint", {
+        p_subject_id: subjectId,
+        p_lat: coords.latitude,
+        p_lng: coords.longitude,
+        p_meters: 200,
+      });
+      if (cancelled) return;
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.warn("[dedup] check failed", error.message);
+        return;
+      }
+      setNearbyMatches(
+        (data ?? []).map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          distance_m: r.distance_m,
+        })),
+      );
+      setOverrideDedup(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coords, subjectId]);
 
   // When the parent finishes a pin drop, capture the coords.
   useEffect(() => {
@@ -330,6 +378,62 @@ export default function AddViewpointSheet({
           )}
         </View>
 
+        {nearbyMatches.length > 0 && !overrideDedup ? (
+          <View style={styles.dedupPanel}>
+            <View style={styles.dedupHeaderRow}>
+              <Ionicons
+                name="information-circle"
+                size={16}
+                color={colors.ember}
+              />
+              <Text style={styles.dedupTitle}>
+                Looks like this might already exist
+              </Text>
+            </View>
+            <Text style={styles.dedupSubtitle}>
+              {nearbyMatches.length === 1 ? "1 viewpoint" : `${nearbyMatches.length} viewpoints`} within
+              200m of this spot:
+            </Text>
+            {nearbyMatches.map((m) => (
+              <Pressable
+                key={m.id}
+                onPress={() => {
+                  if (onOpenExistingViewpoint) {
+                    onOpenExistingViewpoint(m.id);
+                    onClose();
+                  }
+                }}
+                style={styles.dedupRow}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={colors.text}
+                />
+                <Text numberOfLines={1} style={styles.dedupName}>
+                  {m.name}
+                </Text>
+                <Text style={styles.dedupDistance}>
+                  {Math.round(m.distance_m)}m
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={colors.textTertiary}
+                />
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => setOverrideDedup(true)}
+              style={styles.dedupOverride}
+            >
+              <Text style={styles.dedupOverrideText}>
+                Add anyway — this is a different spot
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <Pressable
           onPress={handleSave}
           disabled={busy === "saving"}
@@ -436,4 +540,41 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: colors.text, fontWeight: "700", fontSize: 14 },
 
   helperText: { fontSize: 12, color: colors.textSecondary, lineHeight: 16 },
+
+  dedupPanel: {
+    backgroundColor: colors.peakSoft,
+    borderRadius: radii.md,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.peak,
+  },
+  dedupHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  dedupTitle: { fontSize: 13, fontWeight: "700", color: colors.emberDark },
+  dedupSubtitle: { fontSize: 12, color: colors.text },
+  dedupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  dedupName: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.text },
+  dedupDistance: { fontSize: 11, color: colors.textSecondary, fontWeight: "600" },
+  dedupOverride: {
+    paddingVertical: 6,
+    alignItems: "center",
+  },
+  dedupOverrideText: {
+    fontSize: 12,
+    color: colors.emberDark,
+    fontWeight: "700",
+    textDecorationLine: "underline",
+  },
 });
