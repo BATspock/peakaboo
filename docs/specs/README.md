@@ -18,14 +18,15 @@ it. Cross-reference `docs/backlog.md` for the broader feature pipeline.
 
 | # | Title | Effort | Why now |
 |---|---|---|---|
-| 03 | [Places search + subject categories](03-places-search-and-categories.md) | ~5h | Strategic differentiation from Is The Mountain Out |
+| 04 | [Search dropdown click + visibility icons + reframed search](04-search-fix-and-polish.md) | ~1.5h | P0 — clicks don't work, blocks core search flow |
 
 ## Deferred
 
 | # | Title | Why deferred |
 |---|---|---|
-| 01 | [Map markers show visibility status](01-map-visibility-status.md) | Bumped behind 03 (strategic priority); revisit after Places ships |
-| 02 | [OG link previews for shared viewpoints](02-og-link-previews.md) | Bumped behind 03; revisit before broader public sharing |
+| 03 | [Places search + subject categories](03-places-search-and-categories.md) | Done — shipped in commit e5f0709 |
+| 01 | [Map markers show visibility status](01-map-visibility-status.md) | Bumped behind 04 (P0 click bug); revisit after 04 |
+| 02 | [OG link previews for shared viewpoints](02-og-link-previews.md) | Bumped behind 04; revisit before broader public sharing |
 
 ## Workflow when picking up a spec
 
