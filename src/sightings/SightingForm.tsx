@@ -13,7 +13,11 @@ import {
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
 import type { SightingCondition } from "../data/types";
-import { pickAndUploadImages, type UploadedImage } from "./uploadImages";
+import {
+  pickAndUploadImages,
+  type ImageSource,
+  type UploadedImage,
+} from "./uploadImages";
 import { colors, radii } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -135,7 +139,7 @@ export default function SightingForm({
     setImages([]);
   }
 
-  async function handleAddPhotos() {
+  async function handleAddPhotos(source: ImageSource) {
     if (!session) return;
     const sightingId = await ensureDraftSighting();
     if (!sightingId) return;
@@ -145,6 +149,7 @@ export default function SightingForm({
       const newOnes = await pickAndUploadImages({
         sightingId,
         userId: session.user.id,
+        source,
       });
       setImages((prev) => [...prev, ...newOnes]);
       onSaved();
@@ -271,7 +276,7 @@ export default function SightingForm({
             </Pressable>
           ))}
           <Pressable
-            onPress={handleAddPhotos}
+            onPress={() => handleAddPhotos("camera")}
             disabled={uploading}
             style={[styles.addPhotoTile, uploading && { opacity: 0.6 }]}
           >
@@ -280,11 +285,29 @@ export default function SightingForm({
             ) : (
               <>
                 <Ionicons
-                  name="camera-outline"
+                  name="camera"
+                  size={22}
+                  color={colors.forestSoft}
+                />
+                <Text style={styles.addPhotoText}>Camera</Text>
+              </>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => handleAddPhotos("library")}
+            disabled={uploading}
+            style={[styles.addPhotoTile, uploading && { opacity: 0.6 }]}
+          >
+            {uploading ? (
+              <ActivityIndicator />
+            ) : (
+              <>
+                <Ionicons
+                  name="images-outline"
                   size={22}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.addPhotoText}>Add</Text>
+                <Text style={styles.addPhotoText}>Library</Text>
               </>
             )}
           </Pressable>
