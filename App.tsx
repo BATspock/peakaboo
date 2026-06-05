@@ -337,6 +337,7 @@ function Home() {
           setPinDropCoords(null);
         }}
         subjects={subjects}
+        defaultSubjectId={activeSubjectId}
         pinDropCoords={pinDropCoords}
         onRequestPinDrop={() => {
           setAddOpen(false);

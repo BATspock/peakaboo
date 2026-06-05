@@ -26,6 +26,10 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   subjects: Subject[];
+  // The subject the user is currently viewing on the map. Pre-selected
+  // when the sheet opens so the user doesn't have to reselect — and the
+  // dedup check runs against the right subject.
+  defaultSubjectId: string | null;
   pinDropCoords: Coords; // set externally when the user taps the map in pin-drop mode
   onRequestPinDrop: () => void;
   onCreated: (newViewpointId: string) => void;
@@ -42,6 +46,7 @@ export default function AddViewpointSheet({
   visible,
   onClose,
   subjects,
+  defaultSubjectId,
   pinDropCoords,
   onRequestPinDrop,
   onCreated,
@@ -52,7 +57,7 @@ export default function AddViewpointSheet({
   const [coords, setCoords] = useState<Coords>(null);
   const [coordInput, setCoordInput] = useState({ lat: "", lng: "" });
   const [subjectId, setSubjectId] = useState<string | null>(
-    subjects[0]?.id ?? null,
+    defaultSubjectId ?? subjects[0]?.id ?? null,
   );
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -68,11 +73,14 @@ export default function AddViewpointSheet({
       setCoordInput({ lat: "", lng: "" });
       setName("");
       setDescription("");
-      setSubjectId(subjects[0]?.id ?? null);
+      // Default to the active subject the user is currently viewing,
+      // so the dedup check runs against the right subject and the user
+      // doesn't have to reselect.
+      setSubjectId(defaultSubjectId ?? subjects[0]?.id ?? null);
       setNearbyMatches([]);
       setOverrideDedup(false);
     }
-  }, [visible, subjects]);
+  }, [visible, subjects, defaultSubjectId]);
 
   // Dedup check — fire whenever subject + coords are both set, to surface
   // possible duplicates before the user hits Save. Soft signal only; user
@@ -348,8 +356,25 @@ export default function AddViewpointSheet({
           />
         </View>
 
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: 10 }}>
           <Text style={styles.label}>View of</Text>
+          {subjectId ? (
+            <View style={styles.selectedBanner}>
+              <Ionicons
+                name="triangle"
+                size={16}
+                color={colors.textOn}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.selectedBannerLabel}>
+                  This viewpoint shows
+                </Text>
+                <Text style={styles.selectedBannerName} numberOfLines={1}>
+                  {subjects.find((s) => s.id === subjectId)?.name ?? "—"}
+                </Text>
+              </View>
+            </View>
+          ) : null}
           {subjectsAvailable ? (
             <SubjectPicker
               subjects={subjects}
@@ -361,14 +386,6 @@ export default function AddViewpointSheet({
               No subjects loaded — try again in a moment.
             </Text>
           )}
-          {subjectId ? (
-            <Text style={styles.subjectConfirm}>
-              Selected:{" "}
-              <Text style={styles.subjectConfirmName}>
-                {subjects.find((s) => s.id === subjectId)?.name ?? "—"}
-              </Text>
-            </Text>
-          ) : null}
         </View>
 
         {nearbyMatches.length > 0 && !overrideDedup ? (
@@ -533,12 +550,30 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: colors.text, fontWeight: "700", fontSize: 14 },
 
   helperText: { fontSize: 12, color: colors.textSecondary, lineHeight: 16 },
-  subjectConfirm: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
+
+  selectedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.forest,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  subjectConfirmName: { color: colors.text, fontWeight: "700" },
+  selectedBannerLabel: {
+    fontSize: 11,
+    color: colors.textOn,
+    opacity: 0.75,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  selectedBannerName: {
+    fontSize: 15,
+    color: colors.textOn,
+    fontWeight: "800",
+    marginTop: 1,
+  },
 
   dedupPanel: {
     backgroundColor: colors.peakSoft,

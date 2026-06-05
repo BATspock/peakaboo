@@ -29,6 +29,82 @@ const CONDITIONS: SightingCondition[] = [
   "rainy",
 ];
 
+// 5-point visibility scale, inspired by "Is The Mountain Out?" but with
+// our own levels. Each maps to (visible: boolean, score: 0-10) so the
+// existing data model is preserved — old sightings still render.
+type Level = {
+  value: 1 | 2 | 3 | 4 | 5;
+  label: string;
+  hint: string;
+  visible: boolean;
+  score: number; // backing 0-10 visibility value
+  tint: string;
+};
+
+const VISIBILITY_LEVELS: Level[] = [
+  {
+    value: 5,
+    label: "Crystal clear",
+    hint: "Sharp outline, no haze",
+    visible: true,
+    score: 10,
+    tint: colors.forestSoft,
+  },
+  {
+    value: 4,
+    label: "Mostly out",
+    hint: "Most of it visible, light haze",
+    visible: true,
+    score: 8,
+    tint: colors.leaf,
+  },
+  {
+    value: 3,
+    label: "Halfway out",
+    hint: "Partially visible, clouds drifting",
+    visible: true,
+    score: 5,
+    tint: colors.peak,
+  },
+  {
+    value: 2,
+    label: "Barely out",
+    hint: "Faint silhouette, mostly obscured",
+    visible: true,
+    score: 2,
+    tint: colors.ember,
+  },
+  {
+    value: 1,
+    label: "Hidden",
+    hint: "Can't see it at all",
+    visible: false,
+    score: 0,
+    tint: colors.clay,
+  },
+];
+
+function levelFromState(
+  visible: boolean | null,
+  visibility: number,
+): Level | null {
+  if (visible === null) return null;
+  // Find the closest level by score, preferring matches that agree on
+  // the visible flag.
+  const candidates = VISIBILITY_LEVELS.filter((l) => l.visible === visible);
+  const pool = candidates.length > 0 ? candidates : VISIBILITY_LEVELS;
+  let best = pool[0];
+  let bestDiff = Math.abs(pool[0].score - visibility);
+  for (const l of pool.slice(1)) {
+    const d = Math.abs(l.score - visibility);
+    if (d < bestDiff) {
+      best = l;
+      bestDiff = d;
+    }
+  }
+  return best;
+}
+
 type Props = {
   viewpointId: string;
   subjectName: string;
@@ -183,22 +259,63 @@ export default function SightingForm({
     onSaved();
   }
 
+  // Map a 5-level scale onto our underlying schema: visible (boolean) +
+  // visibility (0-10 int). Old binary forms still work because both
+  // fields are still set on save. The level is what the user sees.
+  const currentLevel = levelFromState(form.visible, form.visibility);
+
   return (
     <View style={{ gap: 18 }}>
-      <Section title={`Can you see ${subjectName} right now?`}>
-        <View style={styles.yesNoRow}>
-          <BigToggle
-            label="Yes, I can"
-            tint={colors.forestSoft}
-            active={form.visible === true}
-            onPress={() => setForm((f) => ({ ...f, visible: true }))}
-          />
-          <BigToggle
-            label="No view"
-            tint={colors.clay}
-            active={form.visible === false}
-            onPress={() => setForm((f) => ({ ...f, visible: false }))}
-          />
+      <Section title={`How visible is ${subjectName} right now?`}>
+        <View style={{ gap: 6 }}>
+          {VISIBILITY_LEVELS.map((lvl) => {
+            const active = currentLevel?.value === lvl.value;
+            return (
+              <Pressable
+                key={lvl.value}
+                onPress={() =>
+                  setForm((f) => ({
+                    ...f,
+                    visible: lvl.visible,
+                    visibility: lvl.score,
+                  }))
+                }
+                style={[
+                  styles.levelRow,
+                  active && {
+                    backgroundColor: lvl.tint,
+                    borderColor: lvl.tint,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.levelDot,
+                    { backgroundColor: lvl.tint },
+                    active && { backgroundColor: colors.textOn },
+                  ]}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.levelLabel,
+                      active && styles.levelLabelActive,
+                    ]}
+                  >
+                    {lvl.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.levelHint,
+                      active && styles.levelHintActive,
+                    ]}
+                  >
+                    {lvl.hint}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       </Section>
 
@@ -216,33 +333,6 @@ export default function SightingForm({
                 }))
               }
             />
-          ))}
-        </View>
-      </Section>
-
-      <Section
-        title={`Visibility · ${form.visibility}/10`}
-        subtitle="0 = not at all, 10 = crystal clear"
-      >
-        <View style={styles.scaleRow}>
-          {Array.from({ length: 11 }, (_, i) => i).map((n) => (
-            <Pressable
-              key={n}
-              onPress={() => setForm((f) => ({ ...f, visibility: n }))}
-              style={[
-                styles.scaleBtn,
-                form.visibility === n && styles.scaleBtnActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.scaleBtnText,
-                  form.visibility === n && styles.scaleBtnTextActive,
-                ]}
-              >
-                {n}
-              </Text>
-            </Pressable>
           ))}
         </View>
       </Section>
@@ -368,37 +458,6 @@ function Section({
   );
 }
 
-function BigToggle({
-  label,
-  tint,
-  active,
-  onPress,
-}: {
-  label: string;
-  tint: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.bigToggle,
-        active && { backgroundColor: tint, borderColor: tint },
-      ]}
-    >
-      <Text
-        style={[
-          styles.bigToggleText,
-          active && styles.bigToggleTextActive,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function Chip({
   label,
   active,
@@ -430,18 +489,26 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.text },
   sectionSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
-  yesNoRow: { flexDirection: "row", gap: 12 },
-  bigToggle: {
-    flex: 1,
-    paddingVertical: 18,
-    borderRadius: radii.lg,
-    borderWidth: 2,
+  levelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSoft,
-    alignItems: "center",
   },
-  bigToggleText: { fontSize: 16, fontWeight: "700", color: colors.textSecondary },
-  bigToggleTextActive: { color: colors.textOn },
+  levelDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  levelLabel: { fontSize: 14, fontWeight: "700", color: colors.text },
+  levelLabelActive: { color: colors.textOn },
+  levelHint: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
+  levelHintActive: { color: colors.textOn, opacity: 0.85 },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -459,19 +526,6 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
   chipTextActive: { color: colors.textOn },
-
-  scaleRow: { flexDirection: "row", gap: 4 },
-  scaleBtn: {
-    flex: 1,
-    minWidth: 28,
-    paddingVertical: 9,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceSoft,
-    alignItems: "center",
-  },
-  scaleBtnActive: { backgroundColor: colors.glacier },
-  scaleBtnText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
-  scaleBtnTextActive: { color: colors.textOn },
 
   notes: {
     backgroundColor: colors.surfaceSoft,
