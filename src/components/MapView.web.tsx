@@ -37,6 +37,10 @@ type Props = {
   markers: MapMarker[];
   onMarkerPress?: (id: string) => void;
   onMapPress?: (coords: { latitude: number; longitude: number }) => void;
+  onMarkerDragEnd?: (
+    id: string,
+    coords: { latitude: number; longitude: number },
+  ) => void;
   cameraTarget?: CameraTarget | null;
 };
 
@@ -63,6 +67,7 @@ export default function MapView({
   markers,
   onMarkerPress,
   onMapPress,
+  onMarkerDragEnd,
   cameraTarget,
 }: Props) {
   return (
@@ -103,6 +108,18 @@ export default function MapView({
                 position={{ lat: m.latitude, lng: m.longitude }}
                 title={m.title}
                 onClick={() => onMarkerPress?.(m.id)}
+                draggable={m.tint === "draft"}
+                onDragEnd={
+                  m.tint === "draft"
+                    ? (e) => {
+                        if (!e.latLng) return;
+                        onMarkerDragEnd?.(m.id, {
+                          latitude: e.latLng.lat(),
+                          longitude: e.latLng.lng(),
+                        });
+                      }
+                    : undefined
+                }
               >
                 <Pin
                   background={

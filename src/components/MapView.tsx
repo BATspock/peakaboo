@@ -34,6 +34,10 @@ type Props = {
   markers: MapMarker[];
   onMarkerPress?: (id: string) => void;
   onMapPress?: (coords: { latitude: number; longitude: number }) => void;
+  onMarkerDragEnd?: (
+    id: string,
+    coords: { latitude: number; longitude: number },
+  ) => void;
   cameraTarget?: CameraTarget | null;
 };
 
@@ -42,6 +46,7 @@ export default function MapView({
   markers,
   onMarkerPress,
   onMapPress,
+  onMarkerDragEnd,
   cameraTarget,
 }: Props) {
   const mapRef = useRef<RNMaps>(null);
@@ -106,6 +111,16 @@ export default function MapView({
                     : m.tint === "draft"
                       ? "#4DA070"
                       : "#1B3A2F"
+              }
+              draggable={m.tint === "draft"}
+              onDragEnd={
+                m.tint === "draft"
+                  ? (e) =>
+                      onMarkerDragEnd?.(m.id, {
+                        latitude: e.nativeEvent.coordinate.latitude,
+                        longitude: e.nativeEvent.coordinate.longitude,
+                      })
+                  : undefined
               }
               onPress={() => onMarkerPress?.(m.id)}
             />
