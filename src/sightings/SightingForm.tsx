@@ -39,6 +39,7 @@ type Level = {
   visible: boolean;
   score: number; // backing 0-10 visibility value
   tint: string;
+  icon: keyof typeof Ionicons.glyphMap;
 };
 
 const VISIBILITY_LEVELS: Level[] = [
@@ -49,30 +50,34 @@ const VISIBILITY_LEVELS: Level[] = [
     visible: true,
     score: 10,
     tint: colors.forestSoft,
+    icon: "sunny",
   },
   {
     value: 4,
-    label: "Mostly out",
-    hint: "Most of it visible, light haze",
+    label: "Mostly visible",
+    hint: "Most of it showing, light haze",
     visible: true,
     score: 8,
     tint: colors.leaf,
+    icon: "partly-sunny",
   },
   {
     value: 3,
-    label: "Halfway out",
-    hint: "Partially visible, clouds drifting",
+    label: "Partially visible",
+    hint: "About half showing, clouds drifting",
     visible: true,
     score: 5,
     tint: colors.peak,
+    icon: "cloud-outline",
   },
   {
     value: 2,
-    label: "Barely out",
-    hint: "Faint silhouette, mostly obscured",
+    label: "Barely visible",
+    hint: "Faint outline, mostly obscured",
     visible: true,
     score: 2,
     tint: colors.ember,
+    icon: "cloudy",
   },
   {
     value: 1,
@@ -81,6 +86,7 @@ const VISIBILITY_LEVELS: Level[] = [
     visible: false,
     score: 0,
     tint: colors.clay,
+    icon: "eye-off-outline",
   },
 ];
 
@@ -288,12 +294,10 @@ export default function SightingForm({
                   },
                 ]}
               >
-                <View
-                  style={[
-                    styles.levelDot,
-                    { backgroundColor: lvl.tint },
-                    active && { backgroundColor: colors.textOn },
-                  ]}
+                <Ionicons
+                  name={lvl.icon}
+                  size={20}
+                  color={active ? colors.textOn : lvl.tint}
                 />
                 <View style={{ flex: 1 }}>
                   <Text
@@ -499,11 +503,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSoft,
-  },
-  levelDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
   },
   levelLabel: { fontSize: 14, fontWeight: "700", color: colors.text },
   levelLabelActive: { color: colors.textOn },
