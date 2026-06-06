@@ -7,6 +7,7 @@ import React, {
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,13 +16,18 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../theme";
 import { useSubjectSearch, type PlaceSuggestion } from "../data/useSubjectSearch";
-import type { Subject } from "../data/types";
+import {
+  SUBJECT_CATEGORIES,
+  type Subject,
+  type SubjectCategory,
+} from "../data/types";
 import { useAuth } from "../auth/AuthContext";
 import { useSubjectPins } from "../data/useSubjectPins";
 import { recordRecentSubject } from "../data/recentSubjects";
 
 type Props = {
-  subjects: Subject[];                            // featured (initial 3 peaks)
+  subjects: Subject[];                            // featured (initial peaks)
+  allSubjects: Subject[];                         // full catalog, for category browse
   activeSubjectId: string | null;
   onSelectSubject: (id: string) => void;          // existing subject picked
   onSelectPlace: (place: PlaceSuggestion) => void; // new place to add
@@ -39,6 +45,7 @@ export type SubjectSearchHandle = {
 const SubjectSearch = forwardRef<SubjectSearchHandle, Props>(function SubjectSearch(
   {
     subjects,
+    allSubjects,
     activeSubjectId,
     onSelectSubject,
     onSelectPlace,
@@ -49,8 +56,26 @@ const SubjectSearch = forwardRef<SubjectSearchHandle, Props>(function SubjectSea
   const { session } = useAuth();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  // When set, the empty-state dropdown shows landmarks in this category
+  // (alphabetical) instead of the Featured list.
+  const [browseCategory, setBrowseCategory] = useState<SubjectCategory | null>(
+    null,
+  );
   const inputRef = useRef<TextInput>(null);
+  // Pending blur-close timer (see onBlur). Kept in a ref so an in-dropdown
+  // tap (e.g. a category pill) can cancel it and keep the dropdown open.
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { existing, suggestions, loading, error } = useSubjectSearch(query);
+
+  // Tapping inside the dropdown (pills) blurs the input on web, which would
+  // schedule a close. Cancel that and re-focus so the dropdown stays open.
+  function keepOpen() {
+    if (blurTimer.current) {
+      clearTimeout(blurTimer.current);
+      blurTimer.current = null;
+    }
+    inputRef.current?.focus();
+  }
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -65,16 +90,24 @@ const SubjectSearch = forwardRef<SubjectSearchHandle, Props>(function SubjectSea
   const hasQuery = query.trim().length > 0;
   const showDropdown = focused || hasQuery;
 
-  function pickExisting(s: Subject) {
+  function closeAfterPick() {
+    if (blurTimer.current) {
+      clearTimeout(blurTimer.current);
+      blurTimer.current = null;
+    }
     setQuery("");
     setFocused(false);
+    setBrowseCategory(null);
+  }
+
+  function pickExisting(s: Subject) {
+    closeAfterPick();
     onSelectSubject(s.id);
     recordRecentSubject(s.id);
   }
 
   function pickPlace(p: PlaceSuggestion) {
-    setQuery("");
-    setFocused(false);
+    closeAfterPick();
     onSelectPlace(p);
   }
 
@@ -90,12 +123,24 @@ const SubjectSearch = forwardRef<SubjectSearchHandle, Props>(function SubjectSea
         <TextInput
           ref={inputRef}
           style={styles.input}
-          placeholder="Search a peak, waterfall, skyline…"
+          placeholder="Search for a landmark"
           placeholderTextColor={colors.textTertiary}
           value={query}
           onChangeText={setQuery}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            // Defer the close so a tap on a dropdown row registers first.
+            // On web, mousedown on a row blurs the input synchronously; without
+            // this delay `showDropdown` flips false and the dropdown unmounts
+            // before the row's onPress fires — so clicks did nothing. A pill
+            // tap calls keepOpen() to cancel this timer and stay open. The pick
+            // handlers set focused=false themselves; this is the
+            // dismiss-on-click-away path, which also resets the category browse.
+            blurTimer.current = setTimeout(() => {
+              setFocused(false);
+              setBrowseCategory(null);
+            }, 150);
+          }}
           autoCorrect={false}
           autoCapitalize="words"
         />
@@ -113,8 +158,12 @@ const SubjectSearch = forwardRef<SubjectSearchHandle, Props>(function SubjectSea
       {showDropdown ? (
         <View style={styles.dropdown}>
           {!hasQuery ? (
-            <FeaturedSection
-              subjects={subjects}
+            <CategoryBrowse
+              allSubjects={allSubjects}
+              featured={subjects}
+              browseCategory={browseCategory}
+              setBrowseCategory={setBrowseCategory}
+              onKeepOpen={keepOpen}
               activeSubjectId={activeSubjectId}
               onPick={pickExisting}
               session={session}
@@ -173,32 +222,102 @@ const SubjectSearch = forwardRef<SubjectSearchHandle, Props>(function SubjectSea
 
 export default SubjectSearch;
 
-function FeaturedSection({
-  subjects,
+// Empty-state dropdown: a row of category pills + either the landmarks in the
+// selected category (A–Z) or the Featured list when no pill is active.
+function CategoryBrowse({
+  allSubjects,
+  featured,
+  browseCategory,
+  setBrowseCategory,
+  onKeepOpen,
   activeSubjectId,
   onPick,
   session,
   onReport,
 }: {
-  subjects: Subject[];
+  allSubjects: Subject[];
+  featured: Subject[];
+  browseCategory: SubjectCategory | null;
+  setBrowseCategory: (c: SubjectCategory | null) => void;
+  onKeepOpen: () => void;
   activeSubjectId: string | null;
   onPick: (s: Subject) => void;
   session: { user: { id: string } } | null;
   onReport: (s: Subject) => void;
 }) {
+  const inCategory =
+    browseCategory === null
+      ? []
+      : allSubjects
+          .filter((s) => s.kind === browseCategory)
+          .sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <View>
-      <Text style={styles.sectionTitle}>Featured</Text>
-      {subjects.map((s) => (
-        <ExistingRow
-          key={s.id}
-          subject={s}
-          active={activeSubjectId === s.id}
-          onPick={() => onPick(s)}
-          session={session}
-          onReport={() => onReport(s)}
-        />
-      ))}
+      {/* Category pills — horizontally scrollable, all 7 always shown. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        {SUBJECT_CATEGORIES.map((c) => {
+          const active = browseCategory === c.value;
+          return (
+            <Pressable
+              key={c.value}
+              onPress={() => {
+                onKeepOpen();
+                setBrowseCategory(active ? null : c.value);
+              }}
+              style={[styles.pill, active && styles.pillActive]}
+            >
+              <Ionicons
+                name={c.icon}
+                size={13}
+                color={active ? colors.textOn : colors.textSecondary}
+              />
+              <Text
+                style={[styles.pillText, active && styles.pillTextActive]}
+                numberOfLines={1}
+              >
+                {c.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {browseCategory === null ? (
+        <>
+          <Text style={styles.sectionTitle}>Featured</Text>
+          {featured.map((s) => (
+            <ExistingRow
+              key={s.id}
+              subject={s}
+              active={activeSubjectId === s.id}
+              onPick={() => onPick(s)}
+              session={session}
+              onReport={() => onReport(s)}
+            />
+          ))}
+        </>
+      ) : inCategory.length > 0 ? (
+        inCategory.map((s) => (
+          <ExistingRow
+            key={s.id}
+            subject={s}
+            active={activeSubjectId === s.id}
+            onPick={() => onPick(s)}
+            session={session}
+            onReport={() => onReport(s)}
+          />
+        ))
+      ) : (
+        <Text style={styles.emptyText}>
+          No landmarks here yet — add one with the buttons below the search.
+        </Text>
+      )}
     </View>
   );
 }
@@ -223,10 +342,7 @@ function ExistingRow({
   const showPinAction = !!session && !isPinned && canPin;
   return (
     <View style={styles.row}>
-      <Pressable
-        style={styles.rowBody}
-        onPress={onPick}
-      >
+      <Pressable style={styles.rowBody} onPress={onPick}>
         <Ionicons
           name="triangle"
           size={14}
@@ -300,9 +416,8 @@ function prettyKind(k: string): string {
 }
 
 const styles = StyleSheet.create({
-  // Lift the wrap above siblings (e.g., SubjectPinRow rendered below us
-  // in the header) so the absolutely-positioned dropdown floats over
-  // them instead of being covered.
+  // Lift the wrap above sibling header content so the absolutely-positioned
+  // dropdown floats over the map instead of being covered.
   wrap: { position: "relative", zIndex: 100 },
   searchBar: {
     flexDirection: "row",
@@ -347,6 +462,26 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 4,
   },
+  pillRow: {
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pillActive: { backgroundColor: colors.forest, borderColor: colors.forest },
+  pillText: { fontSize: 12, color: colors.textSecondary, fontWeight: "600" },
+  pillTextActive: { color: colors.textOn },
   row: {
     flexDirection: "row",
     alignItems: "center",

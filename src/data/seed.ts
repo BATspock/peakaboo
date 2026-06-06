@@ -16,10 +16,15 @@ export const SEED_SUBJECTS: Subject[] = [
   { id: "mt-rainier", name: "Mt Rainier", kind: "mountain_peak", latitude: 46.8523, longitude: -121.7603 },
   { id: "mt-adams",   name: "Mt Adams",   kind: "mountain_peak", latitude: 46.2024, longitude: -121.4909 },
   { id: "mt-baker",   name: "Mt Baker",   kind: "mountain_peak", latitude: 48.7768, longitude: -121.8145 },
+  // Default My List members alongside Rainier — seeded in DB via migrations
+  // 0012 (Snoqualmie) and 0015 (Downtown Seattle); mirrored here so the pins
+  // resolve even on the instant seed fallback before the DB query lands.
+  { id: "snoqualmie-falls", name: "Snoqualmie Falls", kind: "waterfall",     latitude: 47.5417, longitude: -121.8377 },
+  { id: "downtown-seattle", name: "Downtown Seattle",  kind: "city_skyline", latitude: 47.6050, longitude: -122.3344 },
 ];
 
 export const SEED_VIEWPOINTS: Viewpoint[] = [
-  // ── Mt Rainier (10) ────────────────────────────────────────────────
+  // ── Mt Rainier (9) ─────────────────────────────────────────────────
   // Source: NPS-confirmed (Paradise, Sunrise) + Wikipedia (Reflection Lakes,
   // Mowich Lake, Tipsoo Lake, Sunrise Point) + classic Seattle skyline shots.
   { id: "seed-paradise",      subjectId: "mt-rainier", name: "Paradise",                    latitude: 46.7867, longitude: -121.7350, description: "The park's most famous destination — wildflower meadows and the historic Paradise Inn directly under the summit." },
@@ -29,7 +34,6 @@ export const SEED_VIEWPOINTS: Viewpoint[] = [
   { id: "seed-sunrise-pt",    subjectId: "mt-rainier", name: "Sunrise Point",               latitude: 46.9148, longitude: -121.6390, description: "Roadside pullout on the Sunrise Road — sweeping views of Rainier and the eastern Cascades." },
   { id: "seed-mowich",        subjectId: "mt-rainier", name: "Mowich Lake",                 latitude: 46.9389, longitude: -121.8625, description: "Largest and deepest lake in the park, in the quieter northwest corner." },
   { id: "seed-kerry",         subjectId: "mt-rainier", name: "Kerry Park",                  latitude: 47.6295, longitude: -122.3600, description: "Iconic Seattle skyline with Rainier on a clear day." },
-  { id: "seed-gasworks",      subjectId: "mt-rainier", name: "Gas Works Park",              latitude: 47.6456, longitude: -122.3344, description: "South-facing view across Lake Union toward Rainier." },
   { id: "seed-rizal",         subjectId: "mt-rainier", name: "Dr. Jose Rizal Park",         latitude: 47.5908, longitude: -122.3192, description: "Beacon Hill viewpoint with Rainier behind downtown Seattle." },
   { id: "seed-pt-defiance",   subjectId: "mt-rainier", name: "Point Defiance Park",         latitude: 47.3076, longitude: -122.5158, description: "Tacoma waterfront — Rainier rises behind the Sound." },
 

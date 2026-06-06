@@ -14,8 +14,7 @@ import { usePlaces } from "./src/data/usePlaces";
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import SignInButton from "./src/auth/SignInButton";
 import ViewpointSheet from "./src/sightings/ViewpointSheet";
-import AddViewpointSheet from "./src/viewpoints/AddViewpointSheet";
-import AddSubjectSheet from "./src/viewpoints/AddSubjectSheet";
+import AddSpotSheet from "./src/components/AddSpotSheet";
 import FavoritesSheet from "./src/viewpoints/FavoritesSheet";
 import FavoritesButton from "./src/viewpoints/FavoritesButton";
 import HistorySheet from "./src/sightings/HistorySheet";
@@ -23,7 +22,8 @@ import HistoryButton from "./src/sightings/HistoryButton";
 import SubjectSearch, {
   type SubjectSearchHandle,
 } from "./src/components/SubjectSearch";
-import SubjectPinRow from "./src/components/SubjectPinRow";
+import MyListButton from "./src/components/MyListButton";
+import MyListSheet from "./src/components/MyListSheet";
 import ReportSheet from "./src/components/ReportSheet";
 import { FavoritesProvider, useFavorites } from "./src/data/useFavorites";
 import { SubjectPinsProvider } from "./src/data/useSubjectPins";
@@ -93,12 +93,20 @@ function Home() {
   const [openViewpointId, setOpenViewpointId] = useState<string | null>(
     () => viewpointIdFromPath(getPath()),
   );
-  const [addOpen, setAddOpen] = useState(false);
+  // Bumped only when a brand-new add is started (the add buttons or a
+  // home-search "Add new"), so the AddSpot sheet resets. The pin-drop
+  // round-trip reopens it WITHOUT bumping this, preserving in-progress input.
+  const [addResetNonce, setAddResetNonce] = useState(0);
+  // When launched from the home-search "Add new" result, this pre-stages the
+  // chosen Google place as a new landmark.
+  const [seedPlace, setSeedPlace] = useState<PlaceSuggestion | null>(null);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [myListOpen, setMyListOpen] = useState(false);
+  // Which add flow the AddSpot sheet is showing: a viewpoint (place you look
+  // from) or a landmark (the thing you look at). null = sheet closed.
+  const [addMode, setAddMode] = useState<"viewpoint" | "landmark" | null>(null);
   const [pinDropMode, setPinDropMode] = useState(false);
-  const [addingSubjectFromPlace, setAddingSubjectFromPlace] =
-    useState<PlaceSuggestion | null>(null);
   const [reportTarget, setReportTarget] = useState<{
     type: ReportTargetType;
     id: string;
@@ -183,12 +191,40 @@ function Home() {
     setCameraNonce((n) => n + 1);
   }
 
+  // Home-search "Add new" → a Google place we don't track yet = a new
+  // landmark. Open the Add-a-landmark flow seeded with that place.
   function handleSelectPlace(p: PlaceSuggestion) {
     if (!session) {
       openAuthSheet();
       return;
     }
-    setAddingSubjectFromPlace(p);
+    setPinDropCoords(null);
+    setSeedPlace(p);
+    setAddResetNonce((n) => n + 1);
+    setAddMode("landmark");
+  }
+
+  // The two header "Add" buttons.
+  function openAddViewpoint() {
+    if (!session) {
+      openAuthSheet();
+      return;
+    }
+    setPinDropCoords(null);
+    setSeedPlace(null);
+    setAddResetNonce((n) => n + 1);
+    setAddMode("viewpoint");
+  }
+
+  function openAddLandmark() {
+    if (!session) {
+      openAuthSheet();
+      return;
+    }
+    setPinDropCoords(null);
+    setSeedPlace(null);
+    setAddResetNonce((n) => n + 1);
+    setAddMode("landmark");
   }
 
   function handleReportSubject(s: Subject) {
@@ -199,16 +235,15 @@ function Home() {
     setReportTarget({ type: "subject", id: s.id });
   }
 
-  function handleSubjectCreated(newSubject: Subject) {
+  // A subject was created without a viewpoint ("Just add the landmark").
+  function handleSubjectOnlyCreated(subjectId: string) {
     refresh();
-    setAddingSubjectFromPlace(null);
-    setActiveSubjectId(newSubject.id);
+    setActiveSubjectId(subjectId);
     setCameraNonce((n) => n + 1);
-    recordRecentSubject(newSubject.id);
+    recordRecentSubject(subjectId);
   }
 
   function handleOpenExistingSubject(id: string) {
-    setAddingSubjectFromPlace(null);
     setActiveSubjectId(id);
     setCameraNonce((n) => n + 1);
     recordRecentSubject(id);
@@ -222,7 +257,7 @@ function Home() {
         latitude: s.latitude,
         longitude: s.longitude,
         title: s.name,
-        description: "Subject (the thing being viewed)",
+        description: "The landmark you're looking at",
         tint: "primary",
       }));
 
@@ -243,7 +278,7 @@ function Home() {
             id: "draft:new",
             latitude: pinDropCoords.latitude,
             longitude: pinDropCoords.longitude,
-            title: "New viewpoint",
+            title: "New spot",
             tint: "draft",
           },
         ]
@@ -263,6 +298,7 @@ function Home() {
           </Text>
           {loading && <Text style={styles.titleHint}>loading…</Text>}
           <View style={styles.titleSpacer} />
+          <MyListButton onPress={() => setMyListOpen(true)} />
           <HistoryButton onPress={() => setHistoryOpen(true)} />
           <FavoritesButton onPress={() => setFavoritesOpen(true)} />
           <SignInButton />
@@ -270,16 +306,22 @@ function Home() {
         <SubjectSearch
           ref={searchRef}
           subjects={subjects.slice(0, 6)}
+          allSubjects={subjects}
           activeSubjectId={activeSubjectId}
           onSelectSubject={handleSelectSubject}
           onSelectPlace={handleSelectPlace}
           onReportSubject={handleReportSubject}
         />
-        <SubjectPinRow
-          activeSubjectId={activeSubjectId}
-          onPickSubject={handleSelectSubject}
-          onAddPress={() => searchRef.current?.focus()}
-        />
+        <View style={styles.addRow}>
+          <Pressable style={styles.addBtn} onPress={openAddLandmark}>
+            <Ionicons name="flag" size={15} color={colors.forest} />
+            <Text style={styles.addBtnText}>Add a landmark</Text>
+          </Pressable>
+          <Pressable style={styles.addBtn} onPress={openAddViewpoint}>
+            <Ionicons name="location" size={15} color={colors.forest} />
+            <Text style={styles.addBtnText}>Add a viewpoint</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.mapWrap}>
@@ -295,9 +337,13 @@ function Home() {
           }}
           onMapPress={(coords) => {
             if (!pinDropMode) return;
+            // Drop (or reposition) the draft pin. Stay in pin-drop mode so
+            // the user can drag the pin or tap again to fine-tune; the
+            // sheet reopens only when they confirm via "Use this spot".
             setPinDropCoords(coords);
-            setPinDropMode(false);
-            setAddOpen(true);
+          }}
+          onMarkerDragEnd={(id, coords) => {
+            if (id === "draft:new") setPinDropCoords(coords);
           }}
         />
 
@@ -308,20 +354,46 @@ function Home() {
           >
             <Ionicons name="location" size={16} color={colors.textOn} />
             <Text style={styles.dropBannerText}>
-              Tap anywhere on the map to drop a pin.
+              {pinDropCoords
+                ? "Drag the pin to the exact spot, then confirm."
+                : "Tap the map to place a pin, then drag it to fine-tune."}
             </Text>
           </View>
         ) : null}
 
-        <Pressable
-          style={[styles.fab, { bottom: 24 + insets.bottom }]}
-          onPress={() => {
-            setPinDropCoords(null);
-            setAddOpen(true);
-          }}
-        >
-          <Ionicons name="add" size={30} color={colors.textOn} />
-        </Pressable>
+        {pinDropMode && pinDropCoords ? (
+          <View style={[styles.confirmBar, { bottom: 24 + insets.bottom }]}>
+            <View style={styles.confirmCoords}>
+              <Ionicons name="location" size={14} color={colors.forest} />
+              <Text style={styles.confirmCoordsText}>
+                {pinDropCoords.latitude.toFixed(5)},{" "}
+                {pinDropCoords.longitude.toFixed(5)}
+              </Text>
+            </View>
+            <View style={styles.confirmActions}>
+              <Pressable
+                style={styles.confirmCancelBtn}
+                onPress={() => {
+                  setPinDropMode(false);
+                  setPinDropCoords(null);
+                }}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={styles.confirmUseBtn}
+                onPress={() => {
+                  setPinDropMode(false);
+                  // Pin-drop only happens inside the viewpoint location step;
+                  // reopen there (resetNonce NOT bumped → input preserved).
+                  setAddMode("viewpoint");
+                }}
+              >
+                <Text style={styles.confirmUseText}>Use this spot</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
       </View>
 
       <ViewpointSheet
@@ -330,35 +402,42 @@ function Home() {
         onClose={() => setOpenViewpointId(null)}
       />
 
-      <AddViewpointSheet
-        visible={addOpen}
+      <AddSpotSheet
+        visible={addMode !== null}
+        mode={addMode ?? "viewpoint"}
         onClose={() => {
-          setAddOpen(false);
+          setAddMode(null);
           setPinDropCoords(null);
+          setSeedPlace(null);
         }}
         subjects={subjects}
         defaultSubjectId={activeSubjectId}
         pinDropCoords={pinDropCoords}
+        resetNonce={addResetNonce}
+        seedPlace={seedPlace}
         onRequestPinDrop={() => {
-          setAddOpen(false);
+          // Hide the sheet so the user can interact with the map; the confirm
+          // bar's "Use this spot" reopens it in viewpoint mode.
+          setAddMode(null);
           setPinDropMode(true);
         }}
         onCreated={(id) => {
           refresh();
           setOpenViewpointId(id);
         }}
+        onSubjectOnlyCreated={handleSubjectOnlyCreated}
         onOpenExistingViewpoint={(id) => {
-          setAddOpen(false);
+          setAddMode(null);
           setPinDropCoords(null);
+          setSeedPlace(null);
           setOpenViewpointId(id);
         }}
-      />
-
-      <AddSubjectSheet
-        place={addingSubjectFromPlace}
-        onClose={() => setAddingSubjectFromPlace(null)}
-        onCreated={handleSubjectCreated}
-        onOpenExisting={handleOpenExistingSubject}
+        onOpenExistingSubject={(id) => {
+          setAddMode(null);
+          setPinDropCoords(null);
+          setSeedPlace(null);
+          handleOpenExistingSubject(id);
+        }}
       />
 
       <ReportSheet
@@ -372,6 +451,14 @@ function Home() {
         subjects={subjects}
         viewpoints={viewpoints}
         onPickViewpoint={(id) => setOpenViewpointId(id)}
+      />
+
+      <MyListSheet
+        visible={myListOpen}
+        onClose={() => setMyListOpen(false)}
+        subjects={subjects}
+        activeSubjectId={activeSubjectId}
+        onPickSubject={handleSelectSubject}
       />
 
       <HistorySheet
@@ -419,23 +506,22 @@ const styles = StyleSheet.create({
   },
   titleHint: { fontSize: 12, color: colors.textTertiary, fontWeight: "500" },
   titleError: { fontSize: 12, color: colors.ember, fontWeight: "600" },
-  mapWrap: { flex: 1 },
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 24,
-    width: 60,
-    height: 60,
-    borderRadius: radii.pill,
-    backgroundColor: colors.forestSoft,
+  // The two add entry points, directly under the search bar.
+  addRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  addBtn: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.forest,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
+    gap: 6,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radii.md,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  addBtnText: { fontSize: 13, color: colors.forest, fontWeight: "700" },
+  mapWrap: { flex: 1 },
   dropBanner: {
     position: "absolute",
     left: 16,
@@ -450,4 +536,54 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
   },
   dropBannerText: { color: colors.textOn, fontWeight: "600", fontSize: 13 },
+  confirmBar: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.forest,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  confirmCoords: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  confirmCoordsText: {
+    color: colors.forest,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  confirmCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    alignItems: "center",
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  confirmCancelText: { color: colors.text, fontWeight: "700", fontSize: 14 },
+  confirmUseBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    alignItems: "center",
+    backgroundColor: colors.forestSoft,
+  },
+  confirmUseText: { color: colors.textOn, fontWeight: "700", fontSize: 14 },
 });

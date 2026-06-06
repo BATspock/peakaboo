@@ -11,14 +11,15 @@ import { useAuth } from "../auth/AuthContext";
 import type { Subject } from "./types";
 import { usePlaces } from "./usePlaces";
 
-const MAX_PINS = 5;
+const MAX_PINS = 10;
 
 // IDs of the curated defaults shown to signed-out users (and pre-filled
 // for signed-in users on first signup, via the handle_new_user trigger).
-// Order is the display order.
+// Order is the display order. Must match the DB defaults set in migration
+// 0013 (Rainier / Downtown Seattle / Snoqualmie Falls).
 const DEFAULT_PIN_IDS: readonly string[] = [
   "mt-rainier",
-  "mt-baker",
+  "downtown-seattle",
   "snoqualmie-falls",
 ];
 

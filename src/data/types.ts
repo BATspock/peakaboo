@@ -1,3 +1,5 @@
+import type { Ionicons } from "@expo/vector-icons";
+
 export type SubjectCategory =
   | "mountain_peak"
   | "waterfall"
@@ -7,14 +9,20 @@ export type SubjectCategory =
   | "city_skyline"
   | "other";
 
-export const SUBJECT_CATEGORIES: { value: SubjectCategory; label: string }[] = [
-  { value: "mountain_peak", label: "Mountain peak" },
-  { value: "waterfall", label: "Waterfall" },
-  { value: "lake_view", label: "Lake view" },
-  { value: "ocean_view", label: "Ocean view" },
-  { value: "stargazing", label: "Stargazing" },
-  { value: "city_skyline", label: "City skyline" },
-  { value: "other", label: "Other" },
+type IoniconName = keyof typeof Ionicons.glyphMap;
+
+export const SUBJECT_CATEGORIES: {
+  value: SubjectCategory;
+  label: string;
+  icon: IoniconName;
+}[] = [
+  { value: "mountain_peak", label: "Mountain peak", icon: "triangle" },
+  { value: "waterfall", label: "Waterfall", icon: "rainy" },
+  { value: "lake_view", label: "Lake view", icon: "water" },
+  { value: "ocean_view", label: "Ocean view", icon: "boat-outline" },
+  { value: "stargazing", label: "Stargazing", icon: "moon" },
+  { value: "city_skyline", label: "City skyline", icon: "business" },
+  { value: "other", label: "Other", icon: "ellipsis-horizontal" },
 ];
 
 export type Subject = {

@@ -19,7 +19,7 @@ type Props = {
 };
 
 /**
- * Compact subject picker used inside AddViewpointSheet. Shows the user's
+ * Compact subject picker used inside the AddSpot wizard. Shows the user's
  * pinned subjects + recent searches as one-tap chips, with a filter
  * input below to find anything else from the loaded subjects list.
  *
