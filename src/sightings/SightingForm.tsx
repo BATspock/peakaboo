@@ -14,9 +14,10 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/AuthContext";
 import type { SightingCondition } from "../data/types";
 import {
-  pickAndUploadImages,
+  pickImages,
+  uploadPendingImages,
   type ImageSource,
-  type UploadedImage,
+  type PendingImage,
 } from "./uploadImages";
 import { colors, radii } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -142,17 +143,16 @@ export default function SightingForm({
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  // Each Save creates a new sighting row. We track the most-recent id so
-  // photo uploads (which need a parent sighting_id) can target it.
-  const [draftSightingId, setDraftSightingId] = useState<string | null>(null);
-  const [images, setImages] = useState<UploadedImage[]>([]);
-  const [uploading, setUploading] = useState(false);
+  // Photos are captured/picked locally and held here until the user saves.
+  // Capture is independent of the sighting — nothing is uploaded or written
+  // to the DB until Save creates the sighting row and attaches these.
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [picking, setPicking] = useState(false);
 
   // Reset everything when the viewpoint changes — fresh form on open.
   useEffect(() => {
     setForm(EMPTY);
-    setDraftSightingId(null);
-    setImages([]);
+    setPendingImages([]);
     setSavedAt(null);
   }, [viewpointId]);
 
@@ -169,100 +169,96 @@ export default function SightingForm({
     );
   }
 
-  async function ensureDraftSighting(): Promise<string | null> {
-    if (!session) return null;
-    if (draftSightingId) return draftSightingId;
-    if (form.visible === null) {
-      const msg = "Tell us if you can see it — yes or no.";
-      Platform.OS === "web"
-        ? // eslint-disable-next-line no-alert
-          window.alert(msg)
-        : Alert.alert("Almost there", msg);
-      return null;
-    }
-    const payload = {
-      viewpoint_id: viewpointId,
-      user_id: session.user.id,
-      visible: form.visible,
-      visibility: form.visibility,
-      conditions: form.conditions,
-      notes: form.notes.trim() || null,
-      observed_at: new Date().toISOString(),
-    };
-    const { data, error } = await supabase
-      .from("sightings")
-      .insert(payload)
-      .select("id")
-      .single();
-    if (error || !data) {
-      // eslint-disable-next-line no-console
-      console.warn("[sighting] save failed", error);
-      const msg = error?.message ?? "Could not create sighting.";
-      Platform.OS === "web"
-        ? // eslint-disable-next-line no-alert
-          window.alert(`Save failed: ${msg}`)
-        : Alert.alert("Save failed", msg);
-      return null;
-    }
-    setDraftSightingId(data.id);
-    return data.id;
+  function notify(msg: string, title = "Almost there") {
+    Platform.OS === "web"
+      ? // eslint-disable-next-line no-alert
+        window.alert(msg)
+      : Alert.alert(title, msg);
   }
 
-  async function handleSave() {
-    setSaving(true);
-    const sightingId = await ensureDraftSighting();
-    setSaving(false);
-    if (!sightingId) return;
-    setSavedAt(Date.now());
-    onSaved();
-    // Reset for the next sighting — same viewpoint, fresh state.
-    setForm(EMPTY);
-    setDraftSightingId(null);
-    setImages([]);
-  }
-
+  // Capture/pick photos — opens the camera or library IMMEDIATELY and holds
+  // the result locally. No sighting or visibility level required; nothing is
+  // uploaded until Save.
   async function handleAddPhotos(source: ImageSource) {
     if (!session) return;
-    const sightingId = await ensureDraftSighting();
-    if (!sightingId) return;
-
-    setUploading(true);
+    setPicking(true);
     try {
-      const newOnes = await pickAndUploadImages({
-        sightingId,
-        userId: session.user.id,
-        source,
-      });
-      setImages((prev) => [...prev, ...newOnes]);
-      onSaved();
+      const picked = await pickImages(source);
+      if (picked.length > 0) {
+        setPendingImages((prev) => [...prev, ...picked]);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // eslint-disable-next-line no-console
-      console.warn("[sighting] upload failed", e);
-      Platform.OS === "web"
-        ? // eslint-disable-next-line no-alert
-          window.alert(`Photo upload failed: ${msg}`)
-        : Alert.alert("Photo upload failed", msg);
+      console.warn("[sighting] pick failed", e);
+      notify(msg, "Couldn't add photo");
     } finally {
-      setUploading(false);
+      setPicking(false);
     }
   }
 
-  async function handleRemoveImage(img: UploadedImage) {
-    // Delete the row first (RLS allows because the parent sighting is the user's),
-    // then remove the storage object. If storage fails, we still cleared the row.
-    const { error } = await supabase
-      .from("sighting_images")
-      .delete()
-      .eq("id", img.id);
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.warn("[sighting] delete image row failed", error.message);
+  function handleRemovePending(index: number) {
+    setPendingImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // Save creates the sighting row, then uploads any held photos to it.
+  // This is the ONLY place the visibility level is required.
+  async function handleSave() {
+    if (!session) return;
+    if (form.visible === null) {
+      notify("Pick how visible it is first — that's the one required field.");
       return;
     }
-    await supabase.storage.from("sightings").remove([img.storage_path]);
-    setImages((prev) => prev.filter((i) => i.id !== img.id));
-    onSaved();
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from("sightings")
+        .insert({
+          viewpoint_id: viewpointId,
+          user_id: session.user.id,
+          visible: form.visible,
+          visibility: form.visibility,
+          conditions: form.conditions,
+          notes: form.notes.trim() || null,
+          observed_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      if (error || !data) {
+        // eslint-disable-next-line no-console
+        console.warn("[sighting] save failed", error);
+        notify(error?.message ?? "Could not save sighting.", "Save failed");
+        return;
+      }
+
+      if (pendingImages.length > 0) {
+        try {
+          await uploadPendingImages({
+            sightingId: data.id,
+            userId: session.user.id,
+            pending: pendingImages,
+          });
+        } catch (e) {
+          // The sighting itself saved; only the photos failed. Surface it but
+          // don't lose the sighting.
+          const msg = e instanceof Error ? e.message : String(e);
+          // eslint-disable-next-line no-console
+          console.warn("[sighting] photo upload failed", e);
+          notify(
+            `Sighting saved, but a photo didn't upload: ${msg}`,
+            "Partial save",
+          );
+        }
+      }
+
+      setSavedAt(Date.now());
+      onSaved();
+      // Reset for the next sighting — same viewpoint, fresh state.
+      setForm(EMPTY);
+      setPendingImages([]);
+    } finally {
+      setSaving(false);
+    }
   }
 
   // Map a 5-level scale onto our underlying schema: visible (boolean) +
@@ -352,29 +348,31 @@ export default function SightingForm({
         />
       </Section>
 
-      <Section title={`Photos${images.length ? ` · ${images.length}` : ""}`}>
+      <Section
+        title={`Photos${pendingImages.length ? ` · ${pendingImages.length}` : ""}`}
+      >
         <View style={styles.imageGrid}>
-          {images.map((img, i) => (
+          {pendingImages.map((img, i) => (
             <Pressable
-              key={img.id}
+              key={`${img.uri}-${i}`}
               onPress={() =>
                 onOpenLightbox?.(
-                  images.map((m) => m.publicUrl),
+                  pendingImages.map((m) => m.uri),
                   i,
                 )
               }
-              onLongPress={() => handleRemoveImage(img)}
+              onLongPress={() => handleRemovePending(i)}
               style={styles.imageTile}
             >
-              <Image source={{ uri: img.publicUrl }} style={styles.imageTileImg} />
+              <Image source={{ uri: img.uri }} style={styles.imageTileImg} />
             </Pressable>
           ))}
           <Pressable
             onPress={() => handleAddPhotos("camera")}
-            disabled={uploading}
-            style={[styles.addPhotoTile, uploading && { opacity: 0.6 }]}
+            disabled={picking}
+            style={[styles.addPhotoTile, picking && { opacity: 0.6 }]}
           >
-            {uploading ? (
+            {picking ? (
               <ActivityIndicator />
             ) : (
               <>
@@ -389,10 +387,10 @@ export default function SightingForm({
           </Pressable>
           <Pressable
             onPress={() => handleAddPhotos("library")}
-            disabled={uploading}
-            style={[styles.addPhotoTile, uploading && { opacity: 0.6 }]}
+            disabled={picking}
+            style={[styles.addPhotoTile, picking && { opacity: 0.6 }]}
           >
-            {uploading ? (
+            {picking ? (
               <ActivityIndicator />
             ) : (
               <>
@@ -406,8 +404,10 @@ export default function SightingForm({
             )}
           </Pressable>
         </View>
-        {images.length > 0 ? (
-          <Text style={styles.helperText}>Long-press a photo to remove it.</Text>
+        {pendingImages.length > 0 ? (
+          <Text style={styles.helperText}>
+            Photos upload when you save. Long-press to remove one.
+          </Text>
         ) : null}
       </Section>
 

@@ -14,30 +14,51 @@ export type UploadedImage = {
   publicUrl: string;
 };
 
+// A photo captured/picked locally but NOT yet uploaded. Held in form state
+// until the user saves the sighting (capture is decoupled from persistence).
+export type PendingImage = {
+  uri: string;
+  width: number | null;
+  height: number | null;
+};
+
 export type ImageSource = "library" | "camera";
 
 /**
- * Pick or capture photos, resize+compress, upload to Supabase Storage,
- * and create sighting_images rows. Returns the saved rows (with public URLs).
+ * Open the camera or photo library and return the chosen photos as local
+ * assets. Does NOT upload or touch the database — capturing a photo is
+ * independent of saving the sighting. Returns [] if the user cancels.
  *
  * source = "library": multi-pick from photo library (cap 5)
  * source = "camera":  single capture from camera
  */
-export async function pickAndUploadImages(args: {
+export async function pickImages(
+  source: ImageSource,
+): Promise<PendingImage[]> {
+  const result =
+    source === "camera" ? await captureFromCamera() : await pickFromLibrary();
+  if (result.canceled || result.assets.length === 0) return [];
+  return result.assets.map((a) => ({
+    uri: a.uri,
+    width: a.width ?? null,
+    height: a.height ?? null,
+  }));
+}
+
+/**
+ * Upload previously-picked photos to Supabase Storage and create the
+ * sighting_images rows under the given sighting. Called at save time, once
+ * the parent sighting row exists.
+ */
+export async function uploadPendingImages(args: {
   sightingId: string;
   userId: string;
-  source?: ImageSource;
+  pending: PendingImage[];
 }): Promise<UploadedImage[]> {
-  const source = args.source ?? "library";
-  const result = source === "camera"
-    ? await captureFromCamera()
-    : await pickFromLibrary();
-  if (result.canceled || result.assets.length === 0) return [];
-
   const uploads: UploadedImage[] = [];
-  for (const asset of result.assets) {
+  for (const p of args.pending) {
     const saved = await processAndUpload({
-      asset,
+      pending: p,
       sightingId: args.sightingId,
       userId: args.userId,
     });
@@ -75,21 +96,23 @@ async function captureFromCamera(): Promise<ImagePicker.ImagePickerResult> {
 }
 
 async function processAndUpload(args: {
-  asset: ImagePicker.ImagePickerAsset;
+  pending: PendingImage;
   sightingId: string;
   userId: string;
 }): Promise<UploadedImage> {
-  const { asset } = args;
-  const longEdge = Math.max(asset.width ?? 0, asset.height ?? 0);
+  const { pending } = args;
+  const w = pending.width ?? 0;
+  const h = pending.height ?? 0;
+  const longEdge = Math.max(w, h);
   const needsResize = longEdge > MAX_LONG_EDGE;
   const resizeAction = needsResize
-    ? asset.width >= asset.height
+    ? w >= h
       ? [{ resize: { width: MAX_LONG_EDGE } }]
       : [{ resize: { height: MAX_LONG_EDGE } }]
     : [];
 
   const manipulated = await ImageManipulator.manipulateAsync(
-    asset.uri,
+    pending.uri,
     resizeAction,
     { compress: JPEG_QUALITY, format: ImageManipulator.SaveFormat.JPEG },
   );
