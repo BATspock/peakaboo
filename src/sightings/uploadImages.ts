@@ -2,6 +2,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Platform } from "react-native";
 import { supabase } from "../lib/supabase";
+import { isoFromExif } from "../lib/observedAt";
 
 const MAX_LONG_EDGE = 2048;
 const JPEG_QUALITY = 0.85;
@@ -20,6 +21,10 @@ export type PendingImage = {
   uri: string;
   width: number | null;
   height: number | null;
+  // Capture time from EXIF, used to prefill the sighting's observed time.
+  // Null on web (expo-image-picker does not expose exif there) and for any
+  // photo whose metadata was stripped.
+  takenAt: string | null;
 };
 
 export type ImageSource = "library" | "camera";
@@ -42,6 +47,9 @@ export async function pickImages(
     uri: a.uri,
     width: a.width ?? null,
     height: a.height ?? null,
+    // Read EXIF here: processAndUpload re-encodes via ImageManipulator, which
+    // discards the metadata, so this is the only point it is available.
+    takenAt: isoFromExif(a.exif),
   }));
 }
 
@@ -77,6 +85,8 @@ async function pickFromLibrary(): Promise<ImagePicker.ImagePickerResult> {
     allowsMultipleSelection: true,
     selectionLimit: 5,
     quality: 1,
+    // Needed for capture-time prefill. Android/iOS only — null on web.
+    exif: true,
   });
 }
 
@@ -92,6 +102,7 @@ async function captureFromCamera(): Promise<ImagePicker.ImagePickerResult> {
   return ImagePicker.launchCameraAsync({
     mediaTypes: ["images"],
     quality: 1,
+    exif: true,
   });
 }
 

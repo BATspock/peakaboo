@@ -19,6 +19,10 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { colors, radii } from "../theme";
 import ReportSheet from "../components/ReportSheet";
+import BottomSheet from "../components/BottomSheet";
+import EditTimeSheet, { type EditTimeTarget } from "./EditTimeSheet";
+import SightingHistorySheet, { type HistoryTarget } from "./SightingHistorySheet";
+import { wasLoggedLater } from "../lib/observedAt";
 
 function confirmAsync(message: string): boolean | Promise<boolean> {
   if (Platform.OS === "web") {
@@ -38,6 +42,9 @@ type Row = {
   user_id: string;
   observed_at: string;
   observed_on: string;
+  // Immutable server-side upload time. Used to disclose backdated entries and
+  // to show "originally uploaded" in the history sheet.
+  created_at: string | null;
   visible: boolean;
   visibility: number | null;
   conditions: string | null;
@@ -62,8 +69,15 @@ export default function SightingsFeed({
   const [reportingSightingId, setReportingSightingId] = useState<string | null>(
     null,
   );
+  const [menuRow, setMenuRow] = useState<Row | null>(null);
+  const [editTarget, setEditTarget] = useState<EditTimeTarget | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<HistoryTarget | null>(null);
+  // Bumped after an in-feed edit so the list refetches without the parent
+  // having to own a refresh key for changes it did not initiate.
+  const [localRefresh, setLocalRefresh] = useState(0);
 
   function handleReport(row: Row) {
+    setMenuRow(null);
     if (!session) {
       openAuthSheet();
       return;
@@ -71,7 +85,22 @@ export default function SightingsFeed({
     setReportingSightingId(row.id);
   }
 
+  function openHistory(row: Row) {
+    setMenuRow(null);
+    setHistoryTarget({
+      id: row.id,
+      observed_at: row.observed_at,
+      created_at: row.created_at,
+    });
+  }
+
+  function openEditTime(row: Row) {
+    setMenuRow(null);
+    setEditTarget({ id: row.id, observed_at: row.observed_at });
+  }
+
   async function handleDelete(row: Row) {
+    setMenuRow(null);
     if (!session || row.user_id !== session.user.id) return;
     const ok = await confirmAsync("Delete this sighting? This can't be undone.");
     if (!ok) return;
@@ -107,7 +136,7 @@ export default function SightingsFeed({
       const { data, error } = await supabase
         .from("sightings")
         .select(
-          "id, user_id, observed_at, observed_on, visible, visibility, conditions, notes, profiles(display_name, avatar_url), sighting_images(id, storage_path)",
+          "id, user_id, observed_at, observed_on, created_at, visible, visibility, conditions, notes, profiles(display_name, avatar_url), sighting_images(id, storage_path)",
         )
         .eq("viewpoint_id", viewpointId)
         .order("observed_at", { ascending: false })
@@ -125,7 +154,7 @@ export default function SightingsFeed({
     return () => {
       cancelled = true;
     };
-  }, [viewpointId, refreshKey]);
+  }, [viewpointId, refreshKey, localRefresh]);
 
   if (rows === null) {
     return (
@@ -157,6 +186,51 @@ export default function SightingsFeed({
         }
         onClose={() => setReportingSightingId(null)}
       />
+      <EditTimeSheet
+        target={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSaved={() => setLocalRefresh((n) => n + 1)}
+      />
+      <SightingHistorySheet
+        target={historyTarget}
+        onClose={() => setHistoryTarget(null)}
+      />
+      <BottomSheet
+        visible={menuRow !== null}
+        onClose={() => setMenuRow(null)}
+        title="Sighting options"
+      >
+        {menuRow ? (
+          <View style={{ gap: 4 }}>
+            <MenuAction
+              icon="time-outline"
+              label="View sighting history"
+              onPress={() => openHistory(menuRow)}
+            />
+            {session?.user.id === menuRow.user_id ? (
+              <>
+                <MenuAction
+                  icon="create-outline"
+                  label="Update observation time"
+                  onPress={() => openEditTime(menuRow)}
+                />
+                <MenuAction
+                  icon="trash-outline"
+                  label="Delete sighting"
+                  tint={colors.clay}
+                  onPress={() => handleDelete(menuRow)}
+                />
+              </>
+            ) : (
+              <MenuAction
+                icon="flag-outline"
+                label="Report this sighting"
+                onPress={() => handleReport(menuRow)}
+              />
+            )}
+          </View>
+        ) : null}
+      </BottomSheet>
       <Text style={styles.feedTitle}>Recent sightings</Text>
       {rows.map((r) => {
         const isToday = r.observed_on === today;
@@ -182,32 +256,25 @@ export default function SightingsFeed({
                   {formatViewpointDay(r.observed_at)} ·{" "}
                   {formatViewpointTime(r.observed_at)}
                 </Text>
-                {session?.user.id === r.user_id ? (
-                  <Pressable
-                    onPress={() => handleDelete(r)}
-                    hitSlop={6}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons
-                      name="trash-outline"
-                      size={14}
-                      color={colors.clay}
-                    />
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    onPress={() => handleReport(r)}
-                    hitSlop={6}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons
-                      name="flag-outline"
-                      size={14}
-                      color={colors.textTertiary}
-                    />
-                  </Pressable>
-                )}
+                <Pressable
+                  onPress={() => setMenuRow(r)}
+                  hitSlop={6}
+                  style={styles.iconBtn}
+                >
+                  <Ionicons
+                    name="ellipsis-horizontal"
+                    size={16}
+                    color={colors.textTertiary}
+                  />
+                </Pressable>
               </View>
+              {wasLoggedLater(r.observed_at, r.created_at) ? (
+                <Pressable onPress={() => openHistory(r)}>
+                  <Text style={styles.loggedLater}>
+                    logged later · view history
+                  </Text>
+                </Pressable>
+              ) : null}
               <View style={styles.rowMetaRow}>
                 <Badge
                   label={r.visible ? "Visible" : "Not visible"}
@@ -269,6 +336,33 @@ export default function SightingsFeed({
   );
 }
 
+function MenuAction({
+  icon,
+  label,
+  tint,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  tint?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.menuAction,
+        pressed && { backgroundColor: colors.surfaceSoft },
+      ]}
+    >
+      <Ionicons name={icon} size={18} color={tint ?? colors.textSecondary} />
+      <Text style={[styles.menuActionText, tint ? { color: tint } : null]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function Badge({ label, tint }: { label: string; tint: string }) {
   return (
     <View style={[styles.badge, { backgroundColor: tint }]}>
@@ -318,6 +412,23 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   rowTime: { fontSize: 11, color: colors.textSecondary },
+  loggedLater: {
+    fontSize: 10,
+    color: colors.ember,
+    fontWeight: "700",
+    marginTop: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  menuAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: radii.md,
+  },
+  menuActionText: { fontSize: 15, fontWeight: "600", color: colors.text },
   rowMetaRow: { flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" },
   badge: {
     paddingHorizontal: 9,
