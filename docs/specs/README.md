@@ -19,7 +19,7 @@ it. Cross-reference `docs/backlog.md` for the broader feature pipeline.
 | # | Title | Effort | Why now |
 |---|---|---|---|
 | 04 | [Search dropdown click + visibility icons + reframed search](04-search-fix-and-polish.md) | ~1.5h | P0 — clicks don't work, blocks core search flow |
-| 05 | [User-supplied date & time for a sighting](05-sighting-datetime.md) | ~2h | Unblocks logging photos taken earlier; DB side already applied in `0016` |
+| 05 | [User-supplied date & time for a sighting](05-sighting-datetime.md) | ~3.5h | Unblocks logging photos taken earlier, plus post-save time edits; DB side applied in `0016` + `0017` |
 
 ## Deferred
 
