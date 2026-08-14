@@ -21,6 +21,8 @@ import {
 } from "./uploadImages";
 import { colors, radii } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimeField from "../components/DateTimeField";
+import type { ObservedAtSource } from "../lib/observedAt";
 
 const CONDITIONS: SightingCondition[] = [
   "clear",
@@ -124,14 +126,23 @@ type FormState = {
   visibility: number;
   conditions: SightingCondition | null;
   notes: string;
+  observedAt: string;
+  observedAtSource: ObservedAtSource;
 };
 
-const EMPTY: FormState = {
-  visible: null,
-  visibility: 5,
-  conditions: null,
-  notes: "",
-};
+// A factory, not a constant: observedAt must be re-seeded with the current
+// time every time the form resets, otherwise a long-lived sheet would keep
+// stamping sightings with the moment it first opened.
+function makeEmptyForm(): FormState {
+  return {
+    visible: null,
+    visibility: 5,
+    conditions: null,
+    notes: "",
+    observedAt: new Date().toISOString(),
+    observedAtSource: "now",
+  };
+}
 
 export default function SightingForm({
   viewpointId,
@@ -140,7 +151,7 @@ export default function SightingForm({
   onOpenLightbox,
 }: Props) {
   const { session, openAuthSheet } = useAuth();
-  const [form, setForm] = useState<FormState>(EMPTY);
+  const [form, setForm] = useState<FormState>(makeEmptyForm);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   // Photos are captured/picked locally and held here until the user saves.
@@ -151,7 +162,7 @@ export default function SightingForm({
 
   // Reset everything when the viewpoint changes — fresh form on open.
   useEffect(() => {
-    setForm(EMPTY);
+    setForm(makeEmptyForm());
     setPendingImages([]);
     setSavedAt(null);
   }, [viewpointId]);
@@ -186,6 +197,7 @@ export default function SightingForm({
       const picked = await pickImages(source);
       if (picked.length > 0) {
         setPendingImages((prev) => [...prev, ...picked]);
+        adoptPhotoCaptureTime(picked);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -199,6 +211,18 @@ export default function SightingForm({
 
   function handleRemovePending(index: number) {
     setPendingImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // Prefill the observation time from a photo's capture time. A time the user
+  // picked themselves always wins, and is never silently overwritten.
+  function adoptPhotoCaptureTime(picked: PendingImage[]) {
+    const takenAt = picked.find((p) => p.takenAt)?.takenAt;
+    if (!takenAt) return;
+    setForm((f) =>
+      f.observedAtSource === "now"
+        ? { ...f, observedAt: takenAt, observedAtSource: "exif" }
+        : f,
+    );
   }
 
   // Save creates the sighting row, then uploads any held photos to it.
@@ -220,7 +244,7 @@ export default function SightingForm({
           visibility: form.visibility,
           conditions: form.conditions,
           notes: form.notes.trim() || null,
-          observed_at: new Date().toISOString(),
+          observed_at: form.observedAt,
         })
         .select("id")
         .single();
@@ -254,7 +278,7 @@ export default function SightingForm({
       setSavedAt(Date.now());
       onSaved();
       // Reset for the next sighting — same viewpoint, fresh state.
-      setForm(EMPTY);
+      setForm(makeEmptyForm());
       setPendingImages([]);
     } finally {
       setSaving(false);
@@ -345,6 +369,19 @@ export default function SightingForm({
           multiline
           value={form.notes}
           onChangeText={(t) => setForm((f) => ({ ...f, notes: t }))}
+        />
+      </Section>
+
+      <Section
+        title="When did you see it?"
+        subtitle="Defaults to now. Adding a photo uses the time it was taken."
+      >
+        <DateTimeField
+          value={form.observedAt}
+          source={form.observedAtSource}
+          onChange={(iso, src) =>
+            setForm((f) => ({ ...f, observedAt: iso, observedAtSource: src }))
+          }
         />
       </Section>
 
