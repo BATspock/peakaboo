@@ -8,17 +8,9 @@
 // No date library: the zone offset is derived from Intl for the specific date
 // being converted, so DST is handled without hardcoding -8/-7.
 
-import { DEFAULT_VIEWPOINT_TZ, formatViewpointDay, viewpointDateKey } from "./time";
+import { DEFAULT_VIEWPOINT_TZ } from "./time";
 
 export type ObservedAtSource = "now" | "manual" | "exif";
-
-/** Hours offered for manual selection — daylight hours, when peaks are visible. */
-export const HOUR_CHOICES: number[] = [
-  5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-];
-
-/** How many days back the manual day list reaches. Older photos come via EXIF. */
-export const MANUAL_DAY_REACH = 30;
 
 /** A backdate gap this large means the entry was logged well after the fact. */
 const LOGGED_LATER_THRESHOLD_MS = 12 * 60 * 60 * 1000;
@@ -34,24 +26,37 @@ const PARTS_FMT = new Intl.DateTimeFormat("en-US", {
   second: "2-digit",
 });
 
-/**
- * Minutes the viewpoint timezone is ahead of UTC at the given instant.
- * Negative for America/Los_Angeles (e.g. -420 in PDT, -480 in PST).
- */
-function zoneOffsetMinutes(instant: Date): number {
+type WallClock = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+/** Break an instant into viewpoint-local wall-clock parts. */
+export function viewpointParts(iso: string | Date): WallClock {
+  const instant = typeof iso === "string" ? new Date(iso) : iso;
   const parts: Record<string, string> = {};
   for (const p of PARTS_FMT.formatToParts(instant)) {
     if (p.type !== "literal") parts[p.type] = p.value;
   }
-  // hour12:false can render midnight as "24" in some engines.
-  const asIfUtc = Date.UTC(
-    Number(parts.year),
-    Number(parts.month) - 1,
-    Number(parts.day),
-    Number(parts.hour) % 24,
-    Number(parts.minute),
-    Number(parts.second),
-  );
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    // hour12:false can render midnight as "24" in some engines.
+    hour: Number(parts.hour) % 24,
+    minute: Number(parts.minute),
+    second: Number(parts.second),
+  };
+}
+
+/** Minutes the viewpoint timezone is ahead of UTC at the given instant. */
+function zoneOffsetMinutes(instant: Date): number {
+  const p = viewpointParts(instant);
+  const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
   return (asIfUtc - instant.getTime()) / 60000;
 }
 
@@ -67,7 +72,7 @@ function wallClockToInstant(
   day: number,
   hour: number,
   minute: number,
-  second: number,
+  second: number = 0,
 ): Date {
   const asIfUtc = Date.UTC(year, month - 1, day, hour, minute, second);
   const firstOffset = zoneOffsetMinutes(new Date(asIfUtc));
@@ -77,80 +82,82 @@ function wallClockToInstant(
   return new Date(ms);
 }
 
-/** Today's date in the viewpoint timezone, shifted back by `dayOffset` days. */
-function viewpointCalendarDay(dayOffset: number): {
-  year: number;
-  month: number;
-  day: number;
-} {
-  const [year, month, day] = viewpointDateKey().split("-").map(Number);
-  // Date-only arithmetic in UTC is safe: no DST on a bare calendar date.
-  const shifted = new Date(
-    Date.UTC(year, month - 1, day) - dayOffset * 86400000,
-  );
-  return {
-    year: shifted.getUTCFullYear(),
-    month: shifted.getUTCMonth() + 1,
-    day: shifted.getUTCDate(),
-  };
-}
-
 /** Never allow a timestamp past now — migration 0016 rejects those outright. */
 export function clampToNow(iso: string): string {
   const now = Date.now();
   return Date.parse(iso) > now ? new Date(now).toISOString() : iso;
 }
 
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** `YYYY-MM-DD` in viewpoint time — the value format of `<input type="date">`. */
+export function viewpointDateInputValue(iso: string): string {
+  const p = viewpointParts(iso);
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+
+/** `HH:MM` (24h) in viewpoint time — the value format of `<input type="time">`. */
+export function viewpointTimeInputValue(iso: string): string {
+  const p = viewpointParts(iso);
+  return `${pad(p.hour)}:${pad(p.minute)}`;
+}
+
+/** Today in viewpoint time, for the `max` attribute of a date input. */
+export function todayViewpointDateInputValue(): string {
+  return viewpointDateInputValue(new Date().toISOString());
+}
+
 /**
- * ISO instant for "`hour`:00 on the day `dayOffset` days ago", viewpoint time.
- * Clamped to now, so "today at 9 PM" selected at noon yields noon.
+ * Combine a `YYYY-MM-DD` date and an `HH:MM` time, both read as viewpoint
+ * wall-clock, into an ISO instant. Clamped to now. Returns the fallback when
+ * either field is empty or malformed, which happens mid-typing in a browser
+ * date input.
  */
-export function isoFromViewpointWallClock(
-  dayOffset: number,
-  hour: number,
+export function isoFromViewpointDateTime(
+  dateValue: string,
+  timeValue: string,
+  fallbackIso: string,
 ): string {
-  const { year, month, day } = viewpointCalendarDay(dayOffset);
-  return clampToNow(wallClockToInstant(year, month, day, hour, 0, 0).toISOString());
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+  const timeMatch = /^(\d{2}):(\d{2})/.exec(timeValue);
+  if (!dateMatch || !timeMatch) return fallbackIso;
+
+  const instant = wallClockToInstant(
+    Number(dateMatch[1]),
+    Number(dateMatch[2]),
+    Number(dateMatch[3]),
+    Number(timeMatch[1]),
+    Number(timeMatch[2]),
+  );
+  if (!Number.isFinite(instant.getTime())) return fallbackIso;
+  return clampToNow(instant.toISOString());
 }
 
-/** The current hour (0-23) in the viewpoint timezone. */
-export function currentViewpointHour(): number {
-  const parts: Record<string, string> = {};
-  for (const p of PARTS_FMT.formatToParts(new Date())) {
-    if (p.type !== "literal") parts[p.type] = p.value;
-  }
-  return Number(parts.hour) % 24;
+/**
+ * A Date whose DEVICE-local wall clock equals the instant's VIEWPOINT wall
+ * clock. Native pickers only speak device-local time, so this is what to hand
+ * them; pair it with isoFromLocalWallClock to read the result back.
+ */
+export function viewpointWallClockAsLocalDate(iso: string): Date {
+  const p = viewpointParts(iso);
+  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, 0, 0);
 }
 
-/** Hours selectable for a given day — the future is not selectable for today. */
-export function hourChoicesForDay(dayOffset: number): number[] {
-  if (dayOffset > 0) return HOUR_CHOICES;
-  const limit = currentViewpointHour();
-  const available = HOUR_CHOICES.filter((h) => h <= limit);
-  // Before 5 AM nothing in HOUR_CHOICES qualifies; offer the current hour.
-  return available.length > 0 ? available : [limit];
-}
-
-/** "5 AM", "12 PM", "9 PM" */
-export function formatHourLabel(hour: number): string {
-  const suffix = hour < 12 ? "AM" : "PM";
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${h12} ${suffix}`;
-}
-
-/** Day options for the manual picker, newest first, labelled Today/Yesterday/date. */
-export function recentDays(
-  count: number = MANUAL_DAY_REACH,
-): { offset: number; label: string }[] {
-  const days: { offset: number; label: string }[] = [];
-  for (let offset = 0; offset < count; offset += 1) {
-    const { year, month, day } = viewpointCalendarDay(offset);
-    // Noon avoids any DST edge when only the calendar day matters. Not clamped:
-    // labelling today must not collapse to "now".
-    const iso = wallClockToInstant(year, month, day, 12, 0, 0).toISOString();
-    days.push({ offset, label: formatViewpointDay(iso) });
-  }
-  return days;
+/**
+ * Inverse of viewpointWallClockAsLocalDate: read a native picker's Date as if
+ * its wall clock were viewpoint-local. Clamped to now.
+ */
+export function isoFromLocalWallClock(picked: Date): string {
+  const instant = wallClockToInstant(
+    picked.getFullYear(),
+    picked.getMonth() + 1,
+    picked.getDate(),
+    picked.getHours(),
+    picked.getMinutes(),
+  );
+  return clampToNow(instant.toISOString());
 }
 
 const EXIF_DATE_RE = /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/;
@@ -182,15 +189,12 @@ export function isoFromExif(
   const m = EXIF_DATE_RE.exec(raw.trim());
   if (!m) return null;
 
-  const [, year, month, day, hour, minute, second] = m.map(Number) as unknown as [
-    unknown,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-  ];
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hour = Number(m[4]);
+  const minute = Number(m[5]);
+  const second = Number(m[6]);
 
   const explicitOffset =
     typeof exif.OffsetTimeOriginal === "string"
