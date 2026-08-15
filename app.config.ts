@@ -54,6 +54,9 @@ const config: ExpoConfig = {
           "PeakAboo uses the camera so you can capture a sighting on the spot.",
       },
     ],
+    // Native date/time pickers. Web never loads this — DateTimeField.web.tsx
+    // uses the browser's own date/time inputs instead.
+    "@react-native-community/datetimepicker",
   ],
 };
 

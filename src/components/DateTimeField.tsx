@@ -1,22 +1,28 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { colors, radii } from "../theme";
-import { formatViewpointDay, formatViewpointTime } from "../lib/time";
+import { formatViewpointDate, formatViewpointTime } from "../lib/time";
 import {
-  formatHourLabel,
-  hourChoicesForDay,
-  isoFromViewpointWallClock,
-  recentDays,
+  isoFromLocalWallClock,
+  viewpointWallClockAsLocalDate,
   type ObservedAtSource,
 } from "../lib/observedAt";
 
-// "When did you see it?" — deliberately zero-dependency so web and native
-// behave identically. Default is Now, which costs the user no interaction;
-// everything else is one or two taps. Minute precision is intentionally not
-// offered manually: EXIF supplies exact minutes when it matters (spec 05).
-
-type Mode = "now" | "today" | "yesterday" | "day";
+// "When did you see it?" — native build. Opens the system calendar for the
+// date and the system clock for the time, both capped at now.
+//
+// Web uses DateTimeField.web.tsx instead: @react-native-community/datetimepicker
+// has no web support, and the browser's own date/time inputs are better there.
+//
+// Timezone note: the native picker only speaks device-local time, while the
+// data model is viewpoint time (America/Los_Angeles). The value handed to the
+// picker is shifted so its device-local wall clock reads as viewpoint wall
+// clock, and the result is read back the same way — so "3 PM" always means
+// 3 PM at the mountain, whatever timezone the phone is in.
 
 type Props = {
   value: string;
@@ -24,177 +30,107 @@ type Props = {
   onChange: (iso: string, source: ObservedAtSource) => void;
 };
 
-const DEFAULT_PAST_HOUR = 12;
-
-function latestHourToday(): number {
-  const choices = hourChoicesForDay(0);
-  return choices[choices.length - 1];
-}
+type OpenPicker = "date" | "time" | null;
 
 export default function DateTimeField({ value, source, onChange }: Props) {
-  const [mode, setMode] = useState<Mode>("now");
-  const [dayOffset, setDayOffset] = useState(0);
-  const [hour, setHour] = useState<number>(latestHourToday());
-
+  const [open, setOpen] = useState<OpenPicker>(null);
+  const isNow = source === "now";
   const fromPhoto = source === "exif";
-  const showHours = !fromPhoto && (mode === "today" || mode === "yesterday" || mode === "day");
 
-  function selectNow() {
-    setMode("now");
-    setDayOffset(0);
-    onChange(new Date().toISOString(), "now");
-  }
-
-  function selectDay(nextMode: Mode, offset: number, nextHour: number) {
-    setMode(nextMode);
-    setDayOffset(offset);
-    setHour(nextHour);
-    onChange(isoFromViewpointWallClock(offset, nextHour), "manual");
-  }
-
-  function selectHour(nextHour: number) {
-    setHour(nextHour);
-    onChange(isoFromViewpointWallClock(dayOffset, nextHour), "manual");
+  function handlePicked(event: DateTimePickerEvent, picked?: Date) {
+    setOpen(null);
+    // Android reports a cancelled dialog rather than returning no value.
+    if (event.type === "dismissed" || !picked) return;
+    onChange(isoFromLocalWallClock(picked), "manual");
   }
 
   return (
     <View style={{ gap: 10 }}>
-      <View style={styles.chipRow}>
-        <Chip
-          label="Now"
-          active={!fromPhoto && mode === "now"}
-          onPress={selectNow}
-        />
-        <Chip
-          label="Earlier today"
-          active={!fromPhoto && mode === "today"}
-          onPress={() => selectDay("today", 0, latestHourToday())}
-        />
-        <Chip
-          label="Yesterday"
-          active={!fromPhoto && mode === "yesterday"}
-          onPress={() => selectDay("yesterday", 1, DEFAULT_PAST_HOUR)}
-        />
-        <Chip
-          label="Pick a day"
-          active={!fromPhoto && mode === "day"}
-          onPress={() => setMode("day")}
-        />
-      </View>
-
-      {mode === "day" && !fromPhoto ? (
-        <ScrollView style={styles.dayList} nestedScrollEnabled>
-          {recentDays().map((d) => (
-            <Pressable
-              key={d.offset}
-              onPress={() =>
-                selectDay(
-                  "day",
-                  d.offset,
-                  d.offset === 0 ? latestHourToday() : DEFAULT_PAST_HOUR,
-                )
-              }
-              style={[styles.dayRow, dayOffset === d.offset && styles.dayRowActive]}
-            >
-              <Text
-                style={[
-                  styles.dayLabel,
-                  dayOffset === d.offset && styles.dayLabelActive,
-                ]}
-              >
-                {d.label}
-              </Text>
-              {dayOffset === d.offset ? (
-                <Ionicons name="checkmark" size={15} color={colors.textOn} />
-              ) : null}
-            </Pressable>
-          ))}
-        </ScrollView>
-      ) : null}
-
-      {showHours ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hourRow}
+      <View style={styles.row}>
+        <Pressable
+          onPress={() => onChange(new Date().toISOString(), "now")}
+          style={[styles.nowChip, isNow && styles.nowChipActive]}
         >
-          {hourChoicesForDay(dayOffset).map((h) => (
-            <Chip
-              key={h}
-              label={formatHourLabel(h)}
-              active={hour === h}
-              onPress={() => selectHour(h)}
-            />
-          ))}
-        </ScrollView>
+          <Text style={[styles.nowChipText, isNow && styles.nowChipTextActive]}>
+            Now
+          </Text>
+        </Pressable>
+
+        <FieldButton
+          icon="calendar-outline"
+          label={formatViewpointDate(value)}
+          onPress={() => setOpen("date")}
+        />
+        <FieldButton
+          icon="time-outline"
+          label={formatViewpointTime(value)}
+          onPress={() => setOpen("time")}
+        />
+      </View>
+
+      {open !== null ? (
+        <DateTimePicker
+          mode={open}
+          value={viewpointWallClockAsLocalDate(value)}
+          // No future observations: migration 0016 rejects them outright.
+          maximumDate={new Date()}
+          onChange={handlePicked}
+        />
       ) : null}
 
-      <View style={styles.summaryRow}>
-        <Ionicons
-          name={fromPhoto ? "image-outline" : "time-outline"}
-          size={13}
-          color={colors.textSecondary}
-        />
-        <Text style={styles.summaryText}>
-          {formatViewpointDay(value)} · {formatViewpointTime(value)}
-          {fromPhoto ? " · from photo" : ""}
-        </Text>
-      </View>
+      {fromPhoto ? (
+        <View style={styles.summaryRow}>
+          <Ionicons name="image-outline" size={13} color={colors.textSecondary} />
+          <Text style={styles.summaryText}>Taken from your photo</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function Chip({
+function FieldButton({
+  icon,
   label,
-  active,
   onPress,
 }: {
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  active: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, active && styles.chipActive]}
+      style={({ pressed }) => [styles.field, pressed && { opacity: 0.75 }]}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-        {label}
-      </Text>
+      <Ionicons name={icon} size={15} color={colors.textSecondary} />
+      <Text style={styles.fieldText}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  row: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  nowChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceSoft,
   },
-  chipActive: { backgroundColor: colors.forest },
-  chipText: { color: colors.textSecondary, fontWeight: "600", fontSize: 13 },
-  chipTextActive: { color: colors.textOn },
-
-  dayList: {
-    maxHeight: 168,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceSoft,
-  },
-  dayRow: {
+  nowChipActive: { backgroundColor: colors.forest },
+  nowChipText: { color: colors.textSecondary, fontWeight: "700", fontSize: 13 },
+  nowChipTextActive: { color: colors.textOn },
+  field: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 9,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  dayRowActive: { backgroundColor: colors.forest, borderRadius: radii.md },
-  dayLabel: { fontSize: 13, color: colors.text, fontWeight: "600" },
-  dayLabelActive: { color: colors.textOn },
-
-  hourRow: { flexDirection: "row", gap: 8, paddingRight: 8 },
-
+  fieldText: { fontSize: 13, fontWeight: "700", color: colors.text },
   summaryRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   summaryText: { fontSize: 12, color: colors.textSecondary, fontWeight: "600" },
 });

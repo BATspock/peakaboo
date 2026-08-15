@@ -22,21 +22,22 @@ the feed under yesterday.
 
 ## Decisions
 
-1. **Zero new dependencies.** No date-picker library. The UI is chips plus a
-   day list, which behaves identically on web and native and avoids a
-   native-only module that React Native Web cannot render.
+1. **Platform-split pickers.** Web uses the browser's own
+   `<input type="date">` / `<input type="time">`; native uses
+   `@react-native-community/datetimepicker` (9.1.0, bundled in Expo Go, no web
+   support). Same `.web.tsx` convention as `MapView`. *Superseded the original
+   zero-dependency chip design, which tested badly — see "Picker rework".*
 2. **EXIF auto-fill is the primary path.** Attaching a photo prefills its
    capture time, so the common "upload an old photo" case costs zero taps.
    Native only — on web `exif` is unsupported and we fall back to "Now".
-3. **Manual precision is hourly.** Chips for the hour, not a minute spinner.
-   Visibility of a mountain does not change meaningfully within an hour, and
-   EXIF supplies exact minutes when it matters. Alternative if this feels too
-   coarse: add 15-minute sub-chips.
+3. **Precision is to the minute**, from the system clock picker.
 4. **Picked wall-clock is viewpoint time**, not device time, because
    `observed_on` is generated in `America/Los_Angeles` and all formatting in
-   `src/lib/time.ts` assumes it.
-5. **Manual backdating reaches 30 days.** Older-than-30-days is reachable via
-   EXIF only. Keeps the day list scannable; revisit if users ask.
+   `src/lib/time.ts` assumes it. The native picker only speaks device-local
+   time, so values are shifted in and out via
+   `viewpointWallClockAsLocalDate` / `isoFromLocalWallClock`.
+5. **Any past date is reachable** via the calendar. The web input's `max`
+   attribute and the native `maximumDate` prop both cap it at today.
 6. **Backdated rows are disclosed** with a subtle "logged later" note when
    `created_at - observed_at > 12h`, so the feed stays trustworthy.
 7. **Post-save time edits are allowed, and logged publicly.** The trail is
@@ -52,19 +53,24 @@ the feed under yesterday.
 A single row above Photos in the sighting form:
 
 ```
-When?   [ Now ]  [ Earlier today ]  [ Yesterday ]  [ Pick a day ]
+When?   [ Now ]  [ 📅 Thu, Aug 14 ]  [ 🕐 3:42 PM ]
 ```
 
 - `Now` is preselected. Someone logging a live sighting touches nothing.
-- `Earlier today` / `Yesterday` reveal a horizontal hour strip
-  (`5 AM … 9 PM`, current hour always included), defaulting to the current
-  hour for today and noon otherwise.
-- `Pick a day` reveals a scrollable list of the last 30 days
-  ("Wed, Aug 12"), then the same hour strip.
+- Tapping the date opens a real calendar, capped at today. Tapping the time
+  opens a real clock. Two taps to reach any past moment.
 - Attaching a photo with EXIF capture time replaces the selection with that
-  exact timestamp and shows `Tue, Aug 12 · 3:42 PM · from photo`. A manual
-  selection wins over EXIF and is never silently overwritten.
+  exact timestamp and notes "Taken from your photo". A manual selection wins
+  over EXIF and is never silently overwritten.
 - Future times are unreachable in the UI; the `0016` trigger is the backstop.
+
+### Picker rework
+
+The first implementation used chips (`Earlier today` / `Yesterday`) plus a
+30-day scrolling day list and an hour strip, chosen to avoid a dependency.
+The day list tested badly: scanning a flat list of 30 labels is slower than a
+calendar grid and cannot reach anything older. Replaced by the system pickers
+described above.
 
 ## Data model
 
@@ -79,23 +85,27 @@ and the `observed_at` indexes.
 
 Pure, testable helpers:
 
-- `isoFromViewpointWallClock(dayOffset: number, hour: number): string` —
-  builds a UTC instant from LA wall-clock parts. Derive the zone offset for
-  that specific date via `Intl.DateTimeFormat` with
-  `timeZone: DEFAULT_VIEWPOINT_TZ` so DST is handled; do not hardcode -8/-7.
-- `isoFromExif(exif: Record<string, any> | null): string | null` — reads
-  `DateTimeOriginal`, falling back to `DateTime`. Format is
-  `"YYYY:MM:DD HH:MM:SS"` with no zone; interpret as viewpoint time per
-  Decision 4. Returns `null` on absent/unparseable/future values.
-- `recentDays(count: number): { offset: number; label: string }[]` — labels
-  via the existing `formatViewpointDay`, so "Today"/"Yesterday" come free.
-- `HOUR_CHOICES` and a `clampToNow` guard.
+- `isoFromViewpointDateTime(dateValue, timeValue, fallback)` — combines a
+  `YYYY-MM-DD` and an `HH:MM` read as viewpoint wall-clock. Falls back while a
+  browser date input is mid-edit and reports an empty value.
+- `viewpointDateInputValue` / `viewpointTimeInputValue` /
+  `todayViewpointDateInputValue` — value and `max` formats for the web inputs.
+- `viewpointWallClockAsLocalDate` / `isoFromLocalWallClock` — the shift in and
+  out of device-local time that the native picker requires.
+- `isoFromExif(exif)` — reads `DateTimeOriginal`, falling back to `DateTime`.
+  Format is `"YYYY:MM:DD HH:MM:SS"` with no zone; interpret as viewpoint time
+  per Decision 4, unless `OffsetTimeOriginal` is present, which is exact.
+  Returns `null` on absent/unparseable/future values.
+- `clampToNow` and `wasLoggedLater` guards.
 
-### 2. `src/components/DateTimeField.tsx` (new) — ~45 min
+Zone offsets come from `Intl` for the specific date being converted, with a
+second pass across DST boundaries, so nothing hardcodes -8/-7.
 
-Controlled component: `{ value: string; source: "now" | "manual" | "exif";
-onChange(iso, source) }`. Chip row, conditional day list, hour strip. Reuses
-`Chip`-style pressables and `colors`/`radii` from `src/theme.ts`.
+### 2. `src/components/DateTimeField.tsx` + `.web.tsx` — ~45 min
+
+Controlled component: `{ value, source, onChange(iso, source) }`. Native opens
+`DateTimePicker` with `maximumDate`; web renders `<input type="date" max>` and
+`<input type="time">`. Metro picks the `.web.tsx` variant automatically.
 
 ### 3. `src/sightings/uploadImages.ts` — ~20 min
 
