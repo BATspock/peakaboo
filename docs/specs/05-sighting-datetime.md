@@ -1,6 +1,6 @@
 # 05 — User-supplied date & time for a sighting
 
-**Status:** in progress — implemented, PR open
+**Status:** done — shipped in PR #2 (`d24cd34`)
 **Effort:** ~3.5h
 **Depends on:** migrations `0016_user_supplied_observed_at.sql` and
 `0017_sighting_time_edit_log.sql` (both applied)

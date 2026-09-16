@@ -53,6 +53,48 @@ type Row = {
   sighting_images: { id: string; storage_path: string }[];
 };
 
+/** Rows fetched per page. Also the "is there another page?" probe: a full
+ *  page means there may be more, a short page means we reached the end. */
+const PAGE_SIZE = 25;
+
+const SELECT_COLUMNS =
+  "id, user_id, observed_at, observed_on, created_at, visible, visibility, conditions, notes, profiles(display_name, avatar_url), sighting_images(id, storage_path)";
+
+/** The last row already on screen. The next page starts strictly after it. */
+type Cursor = { observed_at: string; id: string };
+
+/**
+ * One page of a viewpoint's sightings, newest first.
+ *
+ * Keyset, not offset. Offset paging (`.range()`) drifts the moment anybody
+ * logs a sighting while the reader is paging: every later row shifts by one,
+ * so page 2 repeats a row and skips a row. A cursor naming the last row we
+ * showed is immune to inserts.
+ *
+ * `observed_at` alone is not a total order — two people can log the same
+ * minute at the same viewpoint — so `id` is the tiebreak, in both the sort
+ * and the cursor. Without it the boundary between pages is nondeterministic
+ * and rows fall through the crack.
+ */
+function sightingsPage(viewpointId: string, cursor: Cursor | null) {
+  const query = supabase
+    .from("sightings")
+    .select(SELECT_COLUMNS)
+    .eq("viewpoint_id", viewpointId)
+    .order("observed_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(PAGE_SIZE);
+
+  if (!cursor) return query;
+
+  // Quoted: the timestamp carries `:`, `.` and `+`, all of which PostgREST
+  // would otherwise read as filter syntax inside an `or` group.
+  const at = `"${cursor.observed_at}"`;
+  return query.or(
+    `observed_at.lt.${at},and(observed_at.eq.${at},id.lt.${cursor.id})`,
+  );
+}
+
 type Props = {
   viewpointId: string;
   refreshKey: number;
@@ -66,6 +108,10 @@ export default function SightingsFeed({
 }: Props) {
   const { session, openAuthSheet } = useAuth();
   const [rows, setRows] = useState<Row[] | null>(null);
+  // Whether the last fetch came back full, i.e. there may be older sightings
+  // behind it. Drives the "View more" affordance.
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [reportingSightingId, setReportingSightingId] = useState<string | null>(
     null,
   );
@@ -128,19 +174,40 @@ export default function SightingsFeed({
     setRows((prev) => prev?.filter((r) => r.id !== row.id) ?? null);
   }
 
+  /** Append the page after the oldest row on screen. */
+  async function loadMore() {
+    if (loadingMore || !rows?.length) return;
+    const last = rows[rows.length - 1];
+    setLoadingMore(true);
+    const { data, error } = await sightingsPage(viewpointId, {
+      observed_at: last.observed_at,
+      id: last.id,
+    });
+    setLoadingMore(false);
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("[feed] load more failed", error.message);
+      return;
+    }
+
+    const page = (data as unknown as Row[]) ?? [];
+    setHasMore(page.length === PAGE_SIZE);
+    // Dedupe on id: a sighting backdated into the window we already read
+    // could otherwise arrive twice and collide on its React key.
+    setRows((prev) => {
+      const seen = new Set((prev ?? []).map((r) => r.id));
+      return [...(prev ?? []), ...page.filter((r) => !seen.has(r.id))];
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
     setRows(null);
+    setHasMore(false);
 
     (async () => {
-      const { data, error } = await supabase
-        .from("sightings")
-        .select(
-          "id, user_id, observed_at, observed_on, created_at, visible, visibility, conditions, notes, profiles(display_name, avatar_url), sighting_images(id, storage_path)",
-        )
-        .eq("viewpoint_id", viewpointId)
-        .order("observed_at", { ascending: false })
-        .limit(25);
+      const { data, error } = await sightingsPage(viewpointId, null);
 
       if (cancelled) return;
       if (error) {
@@ -149,7 +216,9 @@ export default function SightingsFeed({
         setRows([]);
         return;
       }
-      setRows((data as unknown as Row[]) ?? []);
+      const page = (data as unknown as Row[]) ?? [];
+      setRows(page);
+      setHasMore(page.length === PAGE_SIZE);
     })();
     return () => {
       cancelled = true;
@@ -332,6 +401,22 @@ export default function SightingsFeed({
           </View>
         );
       })}
+      {hasMore ? (
+        <Pressable
+          style={styles.moreBtn}
+          onPress={loadMore}
+          disabled={loadingMore}
+          accessibilityRole="button"
+          accessibilityLabel="View more sightings"
+          accessibilityState={{ disabled: loadingMore, busy: loadingMore }}
+        >
+          {loadingMore ? (
+            <ActivityIndicator size="small" color={colors.forest} />
+          ) : (
+            <Text style={styles.moreBtnText}>View more sightings</Text>
+          )}
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -458,6 +543,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   photoMoreText: { color: colors.textOn, fontWeight: "700", fontSize: 13 },
+  moreBtn: {
+    minHeight: 44,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  moreBtnText: { fontSize: 13, fontWeight: "700", color: colors.forest },
   iconBtn: {
     width: 24,
     height: 24,

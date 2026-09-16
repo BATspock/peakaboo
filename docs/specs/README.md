@@ -19,12 +19,13 @@ it. Cross-reference `docs/backlog.md` for the broader feature pipeline.
 | # | Title | Effort | Why now |
 |---|---|---|---|
 | 04 | [Search dropdown click + visibility icons + reframed search](04-search-fix-and-polish.md) | ~1.5h | P0 — clicks don't work, blocks core search flow |
-| 05 | [User-supplied date & time for a sighting](05-sighting-datetime.md) | ~3.5h | Unblocks logging photos taken earlier, plus post-save time edits; DB side applied in `0016` + `0017` |
+| 06 | [Page the viewpoint sightings feed](06-sightings-pagination.md) | ~45m | Feed stops at the newest 25, so older sightings and their photos are unreachable |
 
 ## Deferred
 
 | # | Title | Why deferred |
 |---|---|---|
+| 05 | [User-supplied date & time for a sighting](05-sighting-datetime.md) | Done — shipped in PR #2 (`d24cd34`) |
 | 03 | [Places search + subject categories](03-places-search-and-categories.md) | Done — shipped in commit e5f0709 |
 | 01 | [Map markers show visibility status](01-map-visibility-status.md) | Bumped behind 04 (P0 click bug); revisit after 04 |
 | 02 | [OG link previews for shared viewpoints](02-og-link-previews.md) | Bumped behind 04; revisit before broader public sharing |
